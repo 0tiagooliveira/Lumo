@@ -1,1 +1,11 @@
-{"name":"Lumo — compras compartilhadas","short_name":"Lumo","lang":"pt-BR","start_url":"./","display":"standalone","background_color":"#f8f7f3","theme_color":"#ff8126","description":"Listas de compras compartilhadas e salvas com segurança"}
+{
+  "name": "Lumo — listas, compras e notas",
+  "short_name": "Lumo",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f8f7f3",
+  "theme_color": "#ff8126",
+  "description": "Listas de compras compartilhadas e salvas com segurança",
+  "scope": "./"
+}

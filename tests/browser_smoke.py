@@ -10,7 +10,7 @@ from playwright.async_api import async_playwright
 BASE = Path(__file__).resolve().parents[1] / 'web'
 
 async def main():
- html=(BASE/'index.html').read_text(encoding='utf-8')
+ html=(BASE/'beta.html').read_text(encoding='utf-8')
  css=(BASE/'style.css').read_text(encoding='utf-8')
  html=html.replace('<link rel="manifest" href="./manifest.webmanifest"><link rel="stylesheet" href="./style.css">','<style>'+css+'</style>')
  async with async_playwright() as pw:

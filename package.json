@@ -1,11 +1,11 @@
 {
-  "name": "lumo-beta-privada",
+  "name": "lumo-ux-restored-private-beta",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "check": "node --check web/app.js && node --check web/logic.mjs && node --check web/oauth.mjs && node --check web/sw.js && npm test"
+    "check": "node --check web/app.js && node --check web/oauth.mjs && node --check web/experience-auth.mjs && node --check web/experience-sync.mjs && node --check web/experience-sync-core.mjs && node --check web/sw.js && npm test"
   },
   "engines": {
     "node": ">=20"

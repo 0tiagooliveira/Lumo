@@ -1,4 +1,4 @@
-name: Lumo Beta — static checks
+name: Lumo — UX restored and cloud compatibility checks
 on:
   pull_request:
   push:
@@ -26,5 +26,7 @@ jobs:
           python-version: '3.12'
       - run: python -m pip install playwright
       - run: python -m playwright install --with-deps chromium
-      - name: Check mobile auth HTML in Chromium (not OAuth E2E)
+      - name: Verify original MVP UX navigation in Chromium (offline synthetic)
+        run: python tests/experience_navigation_static.py
+      - name: Verify Google login fallback in legacy cloud lab
         run: python tests/browser_smoke.py
