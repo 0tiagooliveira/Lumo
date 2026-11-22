@@ -757,6 +757,12 @@ h1,h2,h3,h4,.display,.page-title,.hero h1,.onboard h1{font-weight:650!important;
 
 .lumo-price-tap{border:0;background:transparent;color:var(--ink);font:inherit;text-align:right;cursor:pointer;border-radius:12px;padding:5px 7px;min-width:80px}
 .lumo-price-tap:hover,.lumo-price-tap:focus-visible{background:var(--soft)}
+
+.scan-zoom-control[hidden],.scan-camera-switch[hidden],.scanner-toolbar [hidden]{display:none!important}
+.scan-zoom-control,.scan-camera-switch{display:flex;align-items:center;gap:9px;padding:11px;margin-top:9px;border-radius:14px;background:var(--soft)}
+.scan-zoom-control label,.scan-camera-switch label{font-size:13px;white-space:nowrap;font-weight:650}
+.scan-zoom-control input{flex:1;min-width:80px;accent-color:var(--accent)}
+.scan-camera-switch select{width:100%;min-width:0;border:1px solid var(--border);border-radius:10px;background:var(--surface);padding:8px;color:var(--ink)}
 </style><title>Lumo</title><link rel="stylesheet" href="./experience.css"></head><body><div id="lumo-identity-gate" class="lumo-gate" role="region" aria-label="Entrar no Lumo">
 <div class="lumo-gate-card"><div class="lumo-gate-logo">lumo<span>.</span></div><div class="lumo-gate-fruit" aria-hidden="true">✳</div><h1>Suas compras, do seu jeito.</h1><p id="lumo-gate-message">Preparando seu espaço privado…</p><button type="button" id="lumo-login-google" class="lumo-google-login" hidden>Continuar com Google</button><p class="lumo-gate-hint">Navegação, mascotes, listas, scanner e histórico preservados do MVP.</p></div></div><div id="lumo-cloud-dock" class="lumo-cloud-dock" hidden><button id="lumo-cloud-open" type="button" aria-haspopup="dialog">Nuvem e convites</button><span id="lumo-cloud-status" role="status" aria-live="polite">Dados locais</span><button id="lumo-cloud-logout" type="button">Sair</button></div><dialog id="lumo-cloud-panel" class="lumo-cloud-panel" aria-label="Listas compartilhadas"><div class="lumo-panel-top"><strong>Compartilhar com segurança</strong><button id="lumo-cloud-close" type="button" aria-label="Fechar">×</button></div><p id="lumo-cloud-desc">As listas só são compartilhadas após sua confirmação. Notas, histórico e fotos permanecem locais nesta etapa.</p><div id="lumo-cloud-current" class="lumo-current-list"></div><button id="lumo-cloud-activate" class="lumo-cloud-primary" type="button">Conectar esta lista</button><button id="lumo-cloud-create-invite" class="lumo-cloud-secondary" type="button" hidden>Criar convite de 24 horas</button><button id="lumo-cloud-share-text" class="lumo-cloud-secondary" type="button">Compartilhar como texto</button><div class="lumo-invite-line"><label for="lumo-invite-input">Recebeu um convite?</label><input id="lumo-invite-input" autocomplete="off" placeholder="Cole o código ou link do convite"><button id="lumo-cloud-redeem" type="button">Aceitar</button></div><div id="lumo-cloud-conflicts" aria-live="polite"></div><button id="lumo-cloud-refresh" class="lumo-cloud-secondary" type="button">Buscar alterações</button><p class="lumo-cloud-warning" id="lumo-cloud-warning" role="status">O scanner e o histórico continuam no seu aparelho até a próxima etapa da integração.</p></dialog><div id="app" role="application" aria-label="Aplicativo de compras"><div class="boot"><span class="boot-orb">●</span><p>Preparando suas compras...</p></div></div><div id="toast" role="status" aria-live="polite"></div><script>
 /* Altere somente este arquivo quando escolher o nome definitivo. */
@@ -1442,6 +1448,44 @@ const _scanCameraError=err=>{
  if(name==='SecurityError'||!navigator.mediaDevices?.getUserMedia)return 'Este arquivo não oferece acesso seguro à câmera. Abra o Lumo em HTTPS no Chrome.';
  return 'Não consegui abrir a câmera. '+String(err?.message||'Tente novamente.');
 };
+let scannerDeviceId=null;
+function scannerMediaConstraints(){
+ return {audio:false,video:{
+  ...(scannerDeviceId?{deviceId:{exact:scannerDeviceId}}:{facingMode:{ideal:scannerFacing}}),
+  width:{ideal:1280},height:{ideal:720},frameRate:{ideal:12,max:15}
+ }};
+}
+async function tuneScannerTrack(stream){
+ const track=stream?.getVideoTracks?.()[0];if(!track)return;
+ const caps=track.getCapabilities?.()||{},settings=track.getSettings?.()||{};
+ const light=$('#torch-button');
+ if(light){light.hidden=!Boolean(caps.torch);light.dataset.on='0';light.textContent='Iluminar';}
+ const zoom=$('#scan-zoom-control'),range=$('#scan-zoom');
+ const canZoom=Number.isFinite(caps.zoom?.min)&&Number.isFinite(caps.zoom?.max)&&caps.zoom.max>caps.zoom.min;
+ if(zoom)zoom.hidden=!canZoom;
+ if(canZoom&&range){
+  range.min=String(caps.zoom.min);range.max=String(caps.zoom.max);
+  range.step=String(caps.zoom.step||0.1);range.value=String(settings.zoom||caps.zoom.min);
+ }
+ if(Array.isArray(caps.focusMode)&&caps.focusMode.includes('continuous')){
+  try{await track.applyConstraints({advanced:[{focusMode:'continuous'}]});}catch{}
+ }
+ const wrap=$('#scan-camera-switch'),select=$('#scan-camera-choice');
+ if(wrap&&select&&navigator.mediaDevices.enumerateDevices){
+  try{
+   const devices=(await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind==='videoinput');
+   wrap.hidden=devices.length<2;
+   select.replaceChildren();
+   for(const [index,camera] of devices.entries()){
+    const option=document.createElement('option');
+    option.value=camera.deviceId;
+    option.textContent=camera.label||('Câmera '+(index+1));
+    if(camera.deviceId===settings.deviceId)option.selected=true;
+    select.appendChild(option);
+   }
+  }catch{wrap.hidden=true;}
+ }
+}
 let state=C.createInitial(),view='home',listId=null,purchaseId=null,receiptId=null,modal=null,modalData={},onboardStep=0,onboardDraft={theme:'light',goal:'Gastar menos',listName:'Mercado do mês',mascot:'orange',accentColor:'#F97316'},draftReceipt=null,draftShoppingImport=null,scanStream=null,scanTimer=null,qrFallback=null,scanBusy=false,scannerFacing='environment',scanContext='product',toastTimer=null,idb=null,dbFallback=false,filter='',savingPromise=Promise.resolve(),readonly=false;
 const BRAND_PALETTE=[
  {name:'Laranja',hex:'#F97316'},{name:'Tangerina',hex:'#FF8A00'},{name:'Coral',hex:'#F2545B'},{name:'Morango',hex:'#E11D48'},
@@ -1789,7 +1833,7 @@ case'muffato-manual':{
  const m=C.findMuffatoMatch(item,state.muffatoMappings);
  return formModal('Vincular produto do Muffato',`<p class="small muted mb-20">Conferir e guardar uma correspondência para futuras notas. O nome fiscal original será preservado.</p><div class="muffato-mini-original"><strong>${esc(item.originalName||item.name)}</strong><small>Código Muffato: ${esc(item.sku||'não informado')}</small></div>${field('Nome comercial confirmado','productName',m?.entry.name||item.name,'text','required maxlength="160"')}${field('Marca','brand',m?.entry.brand||'','text','maxlength="90"')}${field('Peso / apresentação','pack',m?.entry.pack||'','text','placeholder="Ex.: 500 g" maxlength="60"')}${field('EAN/GTIN (opcional)','barcode',item.barcode||m?.entry.barcode||'','text','inputmode="numeric" placeholder="789..."')}${field('Link da página do Super Muffato (opcional)','url',m?.entry.url||'','url','placeholder="https://www.supermuffato.com.br/..."')}`,'Salvar identificação','Voltar','muffato-manual');}
 case'receipt-review':return receiptReviewModal();
-case'scanner':return `<div class="modal-backdrop" role="presentation"><section class="modal" role="dialog" aria-modal="true" aria-label="Leitor de câmera"><div class="modal-handle"></div><div class="row spread mb-20"><h2 class="modal-title" style="margin:0">${scanContext==='note'?'Ler QR da nota':'Ler código de barras'}</h2><button class="modal-close" data-action="close-modal">×</button></div><div class="scan-frame ${scanContext==='product'?'scan-frame-barcode':''}"><video id="scanner-video" autoplay muted playsinline></video><div id="scanner-fallback" style="width:100%"></div><div class="scan-corners"></div></div><div id="scanner-file-fallback" style="display:none"></div><p id="scanner-status" class="small muted mt-14" role="status">Preparando câmera econômica...</p><div class="scanner-toolbar"><button type="button" class="btn btn-soft btn-sm" data-action="switch-camera">${icon('refresh',16)} Trocar câmera</button><button type="button" class="btn btn-soft btn-sm" data-action="torch-toggle" id="torch-button" hidden>Iluminar</button><button type="button" class="btn btn-soft btn-sm" data-action="retry-scan">Tentar novamente</button><button type="button" class="btn btn-soft btn-sm" data-action="scanner-alt-engine" id="scanner-alt-button">Outro leitor</button><button type="button" class="btn btn-soft btn-sm" data-action="camera-image">${icon('image',16)} Galeria</button><button type="button" class="btn btn-soft btn-sm" data-action="camera-capture">${icon('camera',16)} Foto</button></div>${scanContext==='product'?`<button type="button" class="btn btn-outline btn-full mt-14" data-action="label-photo">${icon('camera',17)} Ler nome da embalagem (foto)</button>`:''}<div class="small scan-hint">${scanContext==='note'?'Melhore a leitura: aproxime, evite reflexos e não corte os cantos. Se estiver no mesmo celular, use uma captura de tela. Os itens da nota dependem do XML ou da consulta fiscal permitida.':'Leia EAN-8, EAN-13, UPC ou Code128. Se o produto não estiver cadastrado, você poderá registrá-lo.'}</div><div class="separator"></div><form data-form="scanner-manual">${field(scanContext==='note'?'Link do QR ou chave de 44 dígitos':'EAN / GTIN','code','','text',scanContext==='note'?'placeholder="https://... ou 44 números" required':'inputmode="numeric" placeholder="789..." required')}<div class="modal-actions"><button type="button" class="btn btn-soft" data-action="paste-clipboard-qr">${icon('copy')} Colar</button><button type="submit" class="btn btn-primary">Continuar</button></div></form><input type="file" id="product-label-photo" class="file-control" accept="image/*" capture="environment"><input type="file" id="scanner-file" class="file-control" accept="image/*"><input type="file" id="scanner-capture" class="file-control" accept="image/*" capture="environment"></section></div>`;
+case'scanner':return `<div class="modal-backdrop" role="presentation"><section class="modal" role="dialog" aria-modal="true" aria-label="Leitor de câmera"><div class="modal-handle"></div><div class="row spread mb-20"><h2 class="modal-title" style="margin:0">${scanContext==='note'?'Ler QR da nota':'Ler código de barras'}</h2><button class="modal-close" data-action="close-modal">×</button></div><div class="scan-frame ${scanContext==='product'?'scan-frame-barcode':''}"><video id="scanner-video" autoplay muted playsinline></video><div id="scanner-fallback" style="width:100%"></div><div class="scan-corners"></div></div><div id="scanner-file-fallback" style="display:none"></div><p id="scanner-status" class="small muted mt-14" role="status">Preparando câmera econômica...</p><div class="scanner-toolbar"><button type="button" class="btn btn-soft btn-sm" data-action="switch-camera">${icon('refresh',16)} Trocar câmera</button><button type="button" class="btn btn-soft btn-sm" data-action="torch-toggle" id="torch-button" hidden>Iluminar</button><button type="button" class="btn btn-soft btn-sm" data-action="retry-scan">Tentar novamente</button><button type="button" class="btn btn-soft btn-sm" data-action="scanner-alt-engine" id="scanner-alt-button">Outro leitor</button><button type="button" class="btn btn-soft btn-sm" data-action="camera-image">${icon('image',16)} Galeria</button><button type="button" class="btn btn-soft btn-sm" data-action="camera-capture">${icon('camera',16)} Foto</button></div><div class="scan-camera-switch" id="scan-camera-switch" hidden><label for="scan-camera-choice">Lente</label><select id="scan-camera-choice" aria-label="Selecionar câmera"></select></div><div class="scan-zoom-control" id="scan-zoom-control" hidden><label for="scan-zoom">Zoom</label><input type="range" id="scan-zoom" min="1" max="2" step="0.1" value="1" aria-label="Zoom da câmera"></div>${scanContext==='product'?`<button type="button" class="btn btn-outline btn-full mt-14" data-action="label-photo">${icon('camera',17)} Ler nome da embalagem (foto)</button>`:''}<div class="small scan-hint">${scanContext==='note'?'Melhore a leitura: aproxime, evite reflexos e não corte os cantos. Se estiver no mesmo celular, use uma captura de tela. Os itens da nota dependem do XML ou da consulta fiscal permitida.':'Leia EAN-8, EAN-13, UPC ou Code128. Se o produto não estiver cadastrado, você poderá registrá-lo.'}</div><div class="separator"></div><form data-form="scanner-manual">${field(scanContext==='note'?'Link do QR ou chave de 44 dígitos':'EAN / GTIN','code','','text',scanContext==='note'?'placeholder="https://... ou 44 números" required':'inputmode="numeric" placeholder="789..." required')}<div class="modal-actions"><button type="button" class="btn btn-soft" data-action="paste-clipboard-qr">${icon('copy')} Colar</button><button type="submit" class="btn btn-primary">Continuar</button></div></form><input type="file" id="product-label-photo" class="file-control" accept="image/*" capture="environment"><input type="file" id="scanner-file" class="file-control" accept="image/*"><input type="file" id="scanner-capture" class="file-control" accept="image/*" capture="environment"></section></div>`;
 case'label-candidates':return `<div class="modal-backdrop"><section class="modal" role="dialog" aria-modal="true" aria-label="Revisar nome do produto"><div class="modal-handle"></div><h2 class="modal-title">Nome identificado na foto</h2><p class="small muted mb-20">O reconhecimento da embalagem pode errar. Toque em uma sugestão para conferir no cadastro.</p><div class="label-candidate-list">${labelCandidates.map((name,j)=>`<button type="button" class="label-candidate" data-action="label-name-select" data-index="${j}">${esc(name)} ${icon('chevron',17)}</button>`).join('')}</div><button class="btn btn-soft btn-full mt-14" data-action="return-label">Digitar nome manualmente</button></section></div>`;
 case'barcode-working':return `<div class="modal-backdrop"><section class="modal"><div class="modal-handle"></div><div class="empty"><div class="loader"></div><h2>Código reconhecido!</h2><p><strong>${esc(modalData.barcode||'')}</strong></p><p>Buscando o nome do produto. Se não encontrarmos, o cadastro manual será aberto automaticamente.</p></div><button class="btn btn-soft btn-full" data-action="close-modal">Cancelar</button></section></div>`;
 case'backup-confirm':return formModal('Restaurar backup',`<p>Isso substituirá todas as listas, compras e notas guardadas neste navegador.</p><p class="small muted mt-14">Arquivo: ${esc(d.fileName)}</p>`,'Restaurar dados','Cancelar','backup-confirm');
@@ -2111,7 +2155,7 @@ case'torch-toggle':{
  }catch(err){toast('Não foi possível controlar a lanterna. '+(err?.message||''));}break;
 }
 case'switch-camera':{
- scannerFacing=scannerFacing==='environment'?'user':'environment';
+ scannerFacing=scannerFacing==='environment'?'user':'environment';scannerDeviceId=null;
  stopScan();candidateScan={value:'',context:'',time:0,hits:0};
  const mount=$('#scanner-fallback');if(mount)mount.replaceChildren();
  await initScan();break;
@@ -2389,7 +2433,7 @@ async function startHtml5Camera(context,inform){
   qrFallback=new window.Html5Qrcode('scanner-fallback',{formatsToSupport:formats,verbose:false});
   const box=context==='note'?((w,h)=>({width:Math.min(260,w*.78),height:Math.min(260,h*.75)})):
    ((w,h)=>({width:Math.min(w*.95,540),height:Math.min(h*.55,200)}));
-  await qrFallback.start({facingMode:scannerFacing},{fps:12,qrbox:box,disableFlip:scannerFacing==='environment'},async code=>{
+  await qrFallback.start(scannerDeviceId||{facingMode:scannerFacing},{fps:12,qrbox:box,disableFlip:scannerFacing==='environment'},async code=>{
    if(scanBusy||!confirmedLiveCode(code,context))return;
    scanBusy=true;stopScan();await handleCode(code,context);
   },()=>{});
@@ -2404,14 +2448,14 @@ async function startHtml5Camera(context,inform){
 async function startProductCamera(inform,supported=[],token=scanGeneration){
  if(!window.OfflineBarcode)throw Error('Leitor de barras local indisponível.');
  // Low-power mode: keep the sensor resolution and frame rate controlled on mobile.
- const stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:scannerFacing},width:{ideal:640},height:{ideal:480},frameRate:{ideal:12,max:15}}});
+ const stream=await navigator.mediaDevices.getUserMedia(scannerMediaConstraints());
  if(token!==scanGeneration||modal!=='scanner'){stream.getTracks().forEach(t=>t.stop());return;}
  scanStream=stream;
  const video=$('#scanner-video');if(!video){stopScan();return;}
  video.srcObject=stream;video.style.display='block';
  try{await video.play();}catch(err){stopScan();throw err;}
  if(token!==scanGeneration||modal!=='scanner'){stopScan();return;}
- const torch=$('#torch-button');if(torch)torch.hidden=!stream.getVideoTracks()[0]?.getCapabilities?.()?.torch;
+ await tuneScannerTrack(stream);
  const formats=['ean_13','ean_8','upc_a','upc_e','code_128'].filter(x=>supported.includes(x));
  let detector=null;
  if(typeof window.BarcodeDetector==='function'&&formats.length){try{detector=new BarcodeDetector({formats});}catch{}}
@@ -2456,9 +2500,9 @@ async function startProductCamera(inform,supported=[],token=scanGeneration){
 async function jsQrCameraFallback(inform){
  if(!window.jsQR)await loadExternalScript(JSQR_CDN);
  if(!window.jsQR)throw Error('Decodificador QR indisponível.');
- scanStream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:scannerFacing}}});
+ scanStream=await navigator.mediaDevices.getUserMedia(scannerMediaConstraints());
  const video=$('#scanner-video');if(!video)throw Error('Tela do scanner não encontrada.');
- video.srcObject=scanStream;await video.play();video.style.display='block';const torch=$('#torch-button');if(torch)torch.hidden=!scanStream.getVideoTracks()[0]?.getCapabilities?.()?.torch;
+ video.srcObject=scanStream;await video.play();video.style.display='block';await tuneScannerTrack(scanStream);
  const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d',{willReadFrequently:true});
  inform('Aponte para o QR; mantendo a câmera firme, o leitor confirma o resultado.');
  scanTimer=setInterval(async()=>{
@@ -2557,13 +2601,13 @@ async function initScan(){
  if(supported.includes('qr_code')){
   try{
    const detector=new BarcodeDetector({formats:['qr_code']});
-   const stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:scannerFacing},width:{ideal:640},height:{ideal:480},frameRate:{ideal:12,max:15}}});
+   const stream=await navigator.mediaDevices.getUserMedia(scannerMediaConstraints());
    if(token!==scanGeneration||modal!=='scanner'){stream.getTracks().forEach(t=>t.stop());return;}
    scanStream=stream;
    const video=$('#scanner-video');if(!video){stopScan();return;}
    video.srcObject=stream;await video.play();
    if(token!==scanGeneration||modal!=='scanner'){stopScan();return;}
-   const torch=$('#torch-button');if(torch)torch.hidden=!stream.getVideoTracks()[0]?.getCapabilities?.()?.torch;
+   await tuneScannerTrack(stream);
    inform('Leitor de QR ativo com baixo consumo de memória.');
    scanTimer=setInterval(async()=>{
     if(scanBusy||token!==scanGeneration||modal!=='scanner'||document.hidden||video.readyState<2)return;
@@ -2604,10 +2648,10 @@ async function handleCode(code,context){const val=String(code||'').trim();if(!va
  }catch(err){console.warn('Consulta de catálogo externo indisponível',err);toast('Consulta indisponível. Você pode completar o produto manualmente.');}
  modal='item-edit';modalData=item;render();}
 
-function inputEvent(e){if(e.target.id==='catalog-browse-search'){const box=$('#catalog-browse-results');if(box)box.innerHTML=browseResults(e.target.value,$('#catalog-browse-market')?.value||'');return;}if(e.target.id==='custom-color'){const c=colorSafe(e.target.value);document.documentElement.style.setProperty('--accent',c);document.documentElement.style.setProperty('--accent-light',`color-mix(in srgb,${c} 18%,var(--surface))`);document.documentElement.style.setProperty('--accent-on',rgbContrast(c));const label=document.querySelector('#color-code');if(label)label.textContent=c;const dot=document.querySelector('.color-live-dot');if(dot)dot.style.background=c;}if(e.target.id==='product-search'){const start=e.target.selectionStart;filter=e.target.value;render();const input=$('#product-search');if(input){input.focus();try{input.setSelectionRange(start,start);}catch{}}}}
+function inputEvent(e){if(e.target.id==='scan-zoom'){const track=scanStream?.getVideoTracks?.()[0],caps=track?.getCapabilities?.(),zoom=Number(e.target.value);if(track&&caps?.zoom&&zoom>=caps.zoom.min&&zoom<=caps.zoom.max){void track.applyConstraints({advanced:[{zoom}]}).catch(err=>console.warn('Zoom indisponível',err?.message||err));}return;}if(e.target.id==='catalog-browse-search'){const box=$('#catalog-browse-results');if(box)box.innerHTML=browseResults(e.target.value,$('#catalog-browse-market')?.value||'');return;}if(e.target.id==='custom-color'){const c=colorSafe(e.target.value);document.documentElement.style.setProperty('--accent',c);document.documentElement.style.setProperty('--accent-light',`color-mix(in srgb,${c} 18%,var(--surface))`);document.documentElement.style.setProperty('--accent-on',rgbContrast(c));const label=document.querySelector('#color-code');if(label)label.textContent=c;const dot=document.querySelector('.color-live-dot');if(dot)dot.style.background=c;}if(e.target.id==='product-search'){const start=e.target.selectionStart;filter=e.target.value;render();const input=$('#product-search');if(input){input.focus();try{input.setSelectionRange(start,start);}catch{}}}}
 document.addEventListener('pointermove',e=>{const svg=e.target.closest?.('.mascot-svg:not(.picker-mascot)');if(!svg)return;const r=svg.getBoundingClientRect();const x=Math.max(-2,Math.min(2,(e.clientX-(r.left+r.width/2))/r.width*5));const y=Math.max(-1.5,Math.min(1.5,(e.clientY-(r.top+r.height/2))/r.height*4));const face=svg.querySelector('.mascot-face');if(face){face.style.setProperty('--look-x',x+'px');face.style.setProperty('--look-y',y+'px');}}, {passive:true});
 document.addEventListener('pointerout',e=>{const svg=e.target.closest?.('.mascot-svg:not(.picker-mascot)');if(!svg||svg.contains(e.relatedTarget))return;const face=svg.querySelector('.mascot-face');if(face){face.style.setProperty('--look-x','0px');face.style.setProperty('--look-y','0px');}}, {passive:true});
-document.addEventListener('error',e=>{if(e.target?.matches?.('img[data-product-image]')){const span=document.createElement('span');span.className='catalog-product-placeholder';span.setAttribute('aria-hidden','true');span.textContent='🛒';e.target.replaceWith(span);}},true);document.addEventListener('click',handleAction);document.addEventListener('submit',handleForm);document.addEventListener('change',e=>{if(e.target.id==='catalog-browse-market'){const box=$('#catalog-browse-results');if(box)box.innerHTML=browseResults($('#catalog-browse-search')?.value||'',e.target.value);return;}if(e.target.id==='market-review-choice'){modalData.marketId=e.target.value;render();return;}if(e.target.matches('input[type=file]'))handleFile(e);if(e.target.id==='custom-color'){const hex=colorSafe(e.target.value);if(state.onboarded)change(()=>state.settings.accentColor=hex);else{onboardDraft.accentColor=hex;render();}toast('Sua cor foi aplicada!');}});document.addEventListener('input',inputEvent);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal)closeModal();if((e.key==='Enter'||e.key===' ')&&e.target.matches('.list-card[role=button],.history-card[role=button],.mascot-svg[role=button]')){e.preventDefault();e.target.click();}});
+document.addEventListener('error',e=>{if(e.target?.matches?.('img[data-product-image]')){const span=document.createElement('span');span.className='catalog-product-placeholder';span.setAttribute('aria-hidden','true');span.textContent='🛒';e.target.replaceWith(span);}},true);document.addEventListener('click',handleAction);document.addEventListener('submit',handleForm);document.addEventListener('change',e=>{if(e.target.id==='scan-camera-choice'){scannerDeviceId=e.target.value||null;stopScan();void initScan();return;}if(e.target.id==='catalog-browse-market'){const box=$('#catalog-browse-results');if(box)box.innerHTML=browseResults($('#catalog-browse-search')?.value||'',e.target.value);return;}if(e.target.id==='market-review-choice'){modalData.marketId=e.target.value;render();return;}if(e.target.matches('input[type=file]'))handleFile(e);if(e.target.id==='custom-color'){const hex=colorSafe(e.target.value);if(state.onboarded)change(()=>state.settings.accentColor=hex);else{onboardDraft.accentColor=hex;render();}toast('Sua cor foi aplicada!');}});document.addEventListener('input',inputEvent);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal)closeModal();if((e.key==='Enter'||e.key===' ')&&e.target.matches('.list-card[role=button],.history-card[role=button],.mascot-svg[role=button]')){e.preventDefault();e.target.click();}});
 document.addEventListener('visibilitychange',()=>{
  if(document.hidden&&modal==='scanner'){
   stopScan();
