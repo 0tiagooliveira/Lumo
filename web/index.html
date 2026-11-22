@@ -2182,7 +2182,7 @@ case'camera-capture':openScannerImagePicker('scanner-capture');break;
 case'label-photo':$('#product-label-photo')?.click();break;
 case'return-label':modal='item-edit';modalData=labelOrigin;render();break;
 case'label-name-select':{const selected=labelCandidates[Number(el.dataset.index)];if(!selected)return;modal='item-edit';modalData={...labelOrigin,name:selected,sourceHint:'Nome sugerido a partir da foto; confirme antes de salvar.'};render();toast('Sugestão preenchida. Confira e salve.');break;}
-case'qr-gallery':scanContext='note';$('#file-image-upload')?.click();break;
+case'qr-gallery':scanContext='note';openScannerImagePicker('file-image-upload');break;
 case'qr-camera-photo':scanContext='note';openScannerImagePicker('file-qr-camera');break;
 case'retry-scan':{stopScan();candidateScan={value:'',context:'',time:0,hits:0};render();requestAnimationFrame(()=>initScan());break;}
 case'scanner-alt-engine':{
@@ -2349,7 +2349,7 @@ async function recognizeProductLabel(file){
  if(!labelCandidates.length)throw Error('A foto não mostrou um nome legível. Tente outra foto ou digite manualmente.');
  modal='label-candidates';render();toast('Encontrei sugestões. Confirme a correta.');
 }
-async function handleFile(e){const target=e.target,id=target?.id,file=target?.files?.[0];if(['scanner-file','scanner-capture'].includes(id))scannerMediaPickerPending=false;if(!file)return;try{if(id==='product-label-photo'){await recognizeProductLabel(file);}
+async function handleFile(e){const target=e.target,id=target?.id,file=target?.files?.[0];if(['scanner-file','scanner-capture','file-image-upload','file-qr-camera'].includes(id))scannerMediaPickerPending=false;if(!file)return;try{if(id==='product-label-photo'){await recognizeProductLabel(file);}
 else if(id==='file-xml'){if(file.size>6_000_000)throw Error('XML maior que 6 MB.');const content=await file.text();draftReceipt=C.parseInvoiceXML(content);applyLearnedMarketToDraft(draftReceipt);if(draftReceipt.key){const fiscal=C.validateAccessKey(draftReceipt.key);draftReceipt.fiscalIssues=fiscal.issues;draftReceipt.fiscalValidFormat=fiscal.valid;}showModal('receipt-review');}
 else if(id==='file-photo'){if(file.size>14_000_000)throw Error('Foto maior que 14 MB.');const photo=await shrinkImage(file);draftReceipt={id:uid(),source:'Foto do cupom',store:'',date:todayLocal(),totalCents:0,items:[],photo,importedAt:now(),payment:'Não informado'};showModal('receipt-review');toast('Foto anexada. Reconhecimento de texto opcional na próxima etapa.');}
 else if(['scanner-file','scanner-capture','file-image-upload','file-qr-camera'].includes(id)){
@@ -2735,7 +2735,7 @@ document.addEventListener('visibilitychange',()=>{
   const s=$('#scanner-status');if(s)s.textContent=scannerMediaPickerPending?'Aguardando o retorno da câmera ou galeria nativa.':'Câmera pausada para economizar memória. Toque em Tentar novamente quando voltar.';
  }
 });
-document.addEventListener('cancel',event=>{if(['scanner-file','scanner-capture'].includes(event.target?.id)&&scannerMediaPickerPending){scannerMediaPickerPending=false;const s=$('#scanner-status');if(s&&modal==='scanner')s.textContent='Seleção cancelada. Toque em Tentar novamente para voltar à câmera.';}},true);
+document.addEventListener('cancel',event=>{if(['scanner-file','scanner-capture','file-image-upload','file-qr-camera'].includes(event.target?.id)&&scannerMediaPickerPending){scannerMediaPickerPending=false;const s=$('#scanner-status');if(s&&modal==='scanner')s.textContent='Seleção cancelada. Toque em Tentar novamente para voltar à câmera.';}},true);
 window.addEventListener('pagehide',()=>stopScan());
 window.addEventListener('beforeunload',()=>stopScan());
 window.addEventListener('lumo:auth-ready',()=>{void load();},{once:true});
