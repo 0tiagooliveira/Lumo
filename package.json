@@ -1,0 +1,1 @@
+{"name":"lumo-beta-privada","private":true,"version":"0.1.0","type":"module","scripts":{"test":"node --test tests/*.test.mjs","check":"node --check web/app.js && node --check web/logic.mjs && npm test"},"engines":{"node":">=20"}}

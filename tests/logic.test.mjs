@@ -1,0 +1,15 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {parseMoney,formatMoney,subtotalMinor,cartMinor,validQuantity,canReplay,summarizeQueue,isRecoverableFailure} from '../web/logic.mjs';
+test('R$ 20,99 vira exatamente 2099 centavos',()=>assert.equal(parseMoney('20,99'),2099));
+test('Preço ausente não equivale a zero',()=>assert.equal(parseMoney(''),null));
+test('R$ 0 é explicitamente zero',()=>assert.equal(parseMoney('0,00'),0));
+test('Rejeita preço de precisão excessiva',()=>assert.throws(()=>parseMoney('20,999')));
+test('Formata com locale pt-BR',()=>assert.match(formatMoney(2099),/20,99/));
+test('Subtotal peso 0,315kg x R$20,99',()=>assert.equal(subtotalMinor({quantity:0.315,unit_price_minor:2099}),661));
+test('Soma apenas itens no carrinho e com preço',()=>assert.equal(cartMinor([{state:'in_cart',quantity:1,unit_price_minor:450},{state:'pending',quantity:1,unit_price_minor:500},{state:'in_cart',quantity:0.75,unit_price_minor:2590},{state:'in_cart',quantity:1,unit_price_minor:null}]),2393));
+test('Unidade fracionária é inválida',()=>assert.equal(validQuantity(0.5,'un'),false));
+test('Peso milésimos é válido',()=>assert.equal(validQuantity(0.315,'kg'),true));
+test('Peso com 4 decimais é inválido',()=>assert.equal(validQuantity(0.3155,'kg'),false));
+test('Operação tem identidade suficiente para replay',()=>assert.equal(!!canReplay({operation_id:'1',list_id:'2',item_id:'3',action:'edit'}),true));
+test('Conflitos são diferentes de alterações pendentes',()=>assert.deepEqual(summarizeQueue([{status:'pending'},{status:'conflict'},{status:'pending'}]),{pending:2,conflict:1}));
+test('Falhas transitórias podem ser retentadas',()=>{assert.equal(isRecoverableFailure({status:503}),true);assert.equal(isRecoverableFailure({status:403}),false)});

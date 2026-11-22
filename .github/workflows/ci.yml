@@ -1,0 +1,18 @@
+name: Lumo Beta — static checks
+on:
+  pull_request:
+  push:
+    branches: ['work/**', main]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm run check
+      - name: Verify Firebase config
+        run: node -e "const fs=require('fs'); const f=JSON.parse(fs.readFileSync('firebase.json','utf8')); if(f.hosting.public!=='web')process.exit(1)"

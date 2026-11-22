@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+ <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+ <meta name="theme-color" content="#ff8126"><meta name="description" content="Lumo — listas de compras compartilhadas, sem perder o que importa.">
+ <link rel="manifest" href="./manifest.webmanifest"><link rel="stylesheet" href="./style.css">
+ <title>Lumo · sua compra, junto</title>
+</head>
+<body>
+ <div class="app" id="app">
+  <header class="header"><div class="brand"><span class="brand-mark" aria-hidden="true">◉</span><span>lumo<span class="brand-dot">.</span></span></div><div class="header-right"><span class="network-status" id="networkStatus">Verificando conexão</span><button class="quiet hidden" id="logoutBtn" type="button">Sair</button></div></header>
+  <main>
+   <section class="login-stage" id="loginStage" aria-labelledby="loginHeading">
+    <div class="welcome-orb" aria-hidden="true"><svg viewBox="0 0 160 160" width="152" height="152" fill="none"><circle cx="80" cy="80" r="66" fill="#FFB956"/><path d="M80 29c-6-14 5-23 17-18-2 10-8 18-17 18Z" fill="#419F65"/><path d="M80 30c-2-13-14-15-23-11 5 10 12 13 23 11Z" fill="#48B36E"/><ellipse cx="58" cy="78" rx="6" ry="8" fill="#3D251B"/><ellipse cx="102" cy="78" rx="6" ry="8" fill="#3D251B"/><path d="M62 102Q80 117 98 102" stroke="#3D251B" stroke-width="6" stroke-linecap="round"/><ellipse cx="44" cy="96" rx="12" ry="6" fill="#F58E69" opacity=".45"/><ellipse cx="116" cy="96" rx="12" ry="6" fill="#F58E69" opacity=".45"/></svg></div>
+    <p class="eyebrow">Listas em sintonia</p><h1 id="loginHeading">Comprar fica melhor <em>junto.</em></h1><p class="intro">Organize, compartilhe e acompanhe tudo no seu ritmo, até quando a internet falha.</p>
+    <form id="authForm" class="auth-card"><label for="email">Seu e-mail</label><input id="email" type="email" required autocomplete="email" placeholder="voce@exemplo.com"><label for="password">Sua senha</label><input id="password" type="password" required autocomplete="current-password" minlength="6" placeholder="Pelo menos 6 caracteres"><button class="primary" type="submit" id="loginBtn">Entrar no Lumo</button><button class="secondary" type="button" id="signupBtn">Criar conta</button><p class="form-note">Beta privada: você precisa de uma conta autorizada. O e-mail poderá exigir confirmação.</p></form>
+   </section>
+   <section id="mainStage" class="hidden" aria-label="Suas compras">
+    <div class="welcome"><p class="eyebrow">Nossa organização</p><h1>O que vamos <em>comprar?</em></h1><p id="welcomeText">Suas listas, sempre à mão.</p></div>
+    <div class="main-grid"><aside class="list-aside"><div class="section-heading"><h2>Suas listas</h2><span class="count" id="listsCount">0</span></div><div id="lists" class="lists"></div><form class="new-list" id="newListForm"><label class="sr-only" for="newListName">Nome da lista</label><input id="newListName" maxlength="100" required placeholder="Nova lista de compras"><button class="add" type="submit" aria-label="Criar lista">+</button></form><form id="joinForm" class="join-form"><label for="inviteToken">Recebeu um convite?</label><div class="compact-form"><input id="inviteToken" placeholder="Cole o convite recebido" autocomplete="off" required><button type="submit">Entrar</button></div></form></aside>
+    <section class="list-area" id="listArea"><div class="empty"><div class="empty-symbol">✳</div><h2>Sua próxima lista começa aqui</h2><p>Crie uma lista ou abra uma das suas para começar.</p></div></section></div>
+   </section>
+  </main>
+  <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+  <div class="modal-screen hidden" id="itemEditor" role="dialog" aria-modal="true" aria-labelledby="editorTitle"><form class="modal" id="editForm"><div class="modal-top"><h2 id="editorTitle">Editar item</h2><button class="icon-close" type="button" id="closeEditor" aria-label="Fechar">×</button></div><label for="editName">Produto</label><input id="editName" maxlength="160" required><div class="two"><div><label for="editQty">Quantidade</label><input id="editQty" type="number" step="0.001" min="0.001" max="9999.999" required></div><div><label for="editUnit">Unidade</label><select id="editUnit"><option value="un">Unidade</option><option value="kg">Quilograma</option><option value="g">Grama</option><option value="l">Litro</option><option value="ml">Mililitro</option></select></div></div><label for="editPrice">Preço por unidade (R$)</label><input id="editPrice" inputmode="decimal" placeholder="Ainda não informado"><p class="form-note">Deixe vazio se ainda não souber o preço.</p><div class="modal-footer"><button type="button" class="secondary" id="cancelEditor">Cancelar</button><button type="submit" class="primary">Salvar alteração</button></div></form></div>
+ </div><script type="module" src="./app.js"></script>
+</body></html>
