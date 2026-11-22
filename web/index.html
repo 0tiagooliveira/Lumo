@@ -1889,6 +1889,9 @@ function applyFiscalImport(content,filename='Texto copiado'){
  let parsed;
  if(/<\s*(?:\?xml|nfeProc|NFe|enviNFe)\b/i.test(raw.trim().slice(0,250)))parsed=C.parseInvoiceXML(raw);
  else parsed=C.parseFiscalPublicPage(raw);
+ applyParsedFiscalImport(parsed);
+}
+function applyParsedFiscalImport(parsed){
  const previous=draftReceipt;
  if(previous?.key&&parsed.key&&previous.key!==parsed.key)throw Error('A consulta pertence a OUTRA nota (chave diferente). Nada foi substituído.');
  if(previous?.cnpj&&parsed.cnpj&&previous.cnpj.replace(/\D/g,'')!==parsed.cnpj.replace(/\D/g,''))throw Error('O CNPJ da consulta é diferente do emissor identificado pelo QR. Confira se abriu a nota correta.');
@@ -1930,7 +1933,28 @@ async function importFiscalPdf(file){
  }
  const content=all.join('\n');
  if(content.trim().length<45)throw Error('Este PDF não tem texto selecionável. Use capturas da tela ou importe o XML.');
- applyFiscalImport(content,'PDF salvo da consulta');
+ try{
+  applyFiscalImport(content,'PDF salvo da consulta');
+ }catch(primaryError){
+  if(!String(primaryError?.message||'').includes('Não encontrei itens da NFC-e'))throw primaryError;
+  const {parseFiscalPdfFallback}=await import('./fiscal-pdf-fallback.mjs');
+  const recovered=parseFiscalPdfFallback(content);
+  if(!recovered.items.length){
+   throw Error('O PDF foi aberto, mas nenhum item foi reconhecido. Este arquivo pode ter uma estrutura diferente ou representar só o QR. Envie uma versão anonimizada para ampliar a compatibilidade, ou tente importar XML / Colar texto da nota.');
+  }
+  const parsed={
+   id:uid(),source:'PDF DANFE (leitura assistida, não verificada)',
+   key:'',store:recovered.store||'',date:recovered.date||'',totalCents:recovered.totalCents??0,
+   totalConfirmed:recovered.totalCents!==null,
+   items:recovered.items.map(item=>({
+    id:uid(),name:item.name,originalName:item.name,qty:item.qty,unit:item.unit,
+    unitPriceCents:item.unitPriceCents,totalCents:item.totalCents,
+    category:C.category(item.name),barcode:'',sourceLine:item.line
+   })),
+   fiscalIssues:recovered.issues||[],verified:false,importedAt:now(),payment:'Não informado'
+  };
+  applyParsedFiscalImport(parsed);
+ }
 }
 async function importFiscalScreenshots(files){
  if(!files.length)return;
