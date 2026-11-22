@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+ <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+ <meta name="theme-color" content="#ff8126"><meta name="description" content="Lumo — listas de compras compartilhadas, sem perder o que importa.">
+ <link rel="manifest" href="./manifest.webmanifest"><link rel="stylesheet" href="./style.css">
+ <title>Lumo · sua compra, junto</title>
+</head>
+<body>
+ <div class="app" id="app">
+  <header class="header"><div class="brand"><span class="brand-mark" aria-hidden="true">◉</span><span>lumo<span class="brand-dot">.</span></span></div><div class="header-right"><span class="network-status" id="networkStatus">Verificando conexão</span><button class="quiet hidden" id="logoutBtn" type="button">Sair</button></div></header>
+  <main>
+   <section class="login-stage" id="loginStage" aria-labelledby="loginHeading">
+    <div class="welcome-orb" aria-hidden="true"><svg viewBox="0 0 160 160" width="152" height="152" fill="none"><circle cx="80" cy="80" r="66" fill="#FFB956"/><path d="M80 29c-6-14 5-23 17-18-2 10-8 18-17 18Z" fill="#419F65"/><path d="M80 30c-2-13-14-15-23-11 5 10 12 13 23 11Z" fill="#48B36E"/><ellipse cx="58" cy="78" rx="6" ry="8" fill="#3D251B"/><ellipse cx="102" cy="78" rx="6" ry="8" fill="#3D251B"/><path d="M62 102Q80 117 98 102" stroke="#3D251B" stroke-width="6" stroke-linecap="round"/><ellipse cx="44" cy="96" rx="12" ry="6" fill="#F58E69" opacity=".45"/><ellipse cx="116" cy="96" rx="12" ry="6" fill="#F58E69" opacity=".45"/></svg></div>
+    <p class="eyebrow">Listas em sintonia</p><h1 id="loginHeading">Comprar fica melhor <em>junto.</em></h1><p class="intro">Organize, compartilhe e acompanhe tudo no seu ritmo, até quando a internet falha.</p>
+    <div class="auth-card">
+      <button class="google-primary" type="button" id="googleLoginBtn" aria-label="Continuar com sua Conta Google">
+        <svg aria-hidden="true" width="21" height="21" viewBox="0 0 24 24"><path fill="#4285F4" d="M21.35 12.21c0-.71-.06-1.43-.2-2.11H12v3.98h5.22a4.46 4.46 0 0 1-1.94 2.93v2.45h3.15c1.85-1.7 2.92-4.2 2.92-7.25z"/><path fill="#34A853" d="M12 21.7c2.64 0 4.85-.87 6.47-2.36l-3.15-2.45c-.88.6-2  .96-3.32.96a5.83 5.83 0 0 1-5.48-4.03H3.27v2.53A9.74 9.74 0 0 0 12 21.7z"/><path fill="#FBBC05" d="M6.52 13.82a5.8 5.8 0 0 1 0-3.69V7.6H3.27a9.7 9.7 0 0 0 0 8.75l3.25-2.53z"/><path fill="#EA4335" d="M12 6.11c1.43 0 2.7.49 3.72 1.45l2.79-2.78A9.4 9.4 0 0 0 12 2.3a9.74 9.74 0 0 0-8.73 5.3l3.25 2.53A5.83 5.83 0 0 1 12 6.11z"/></svg>
+        Continuar com Google
+      </button>
+      <p class="form-note">Acesso com sua Conta Google. Somente listas autorizadas ficam visíveis para você.</p>
+      <details class="alternate-login" id="alternateLogin"><summary>Já tenho acesso por e-mail e senha</summary>
+        <form id="authForm" class="password-form"><label for="email">E-mail</label><input id="email" type="email" required autocomplete="email" placeholder="voce@exemplo.com"><label for="password">Senha</label><input id="password" type="password" required autocomplete="current-password" minlength="6"><button class="secondary" type="submit" id="loginBtn">Entrar com e-mail</button></form>
+      </details>
+      <p class="form-note"><strong>Beta privada:</strong> a liberação das contas Google precisa ser configurada no Supabase antes dos testes.</p>
+    </div>
+   </section>
+   <section id="mainStage" class="hidden" aria-label="Suas compras">
+    <div class="welcome"><p class="eyebrow">Nossa organização</p><h1>O que vamos <em>comprar?</em></h1><p id="welcomeText">Suas listas, sempre à mão.</p></div>
+    <div class="main-grid"><aside class="list-aside"><div class="section-heading"><h2>Suas listas</h2><span class="count" id="listsCount">0</span></div><div id="lists" class="lists"></div><form class="new-list" id="newListForm"><label class="sr-only" for="newListName">Nome da lista</label><input id="newListName" maxlength="100" required placeholder="Nova lista de compras"><button class="add" type="submit" aria-label="Criar lista">+</button></form><form id="joinForm" class="join-form"><label for="inviteToken">Recebeu um convite?</label><div class="compact-form"><input id="inviteToken" placeholder="Cole o convite recebido" autocomplete="off" required><button type="submit">Entrar</button></div></form></aside>
+    <section class="list-area" id="listArea"><div class="empty"><div class="empty-symbol">✳</div><h2>Sua próxima lista começa aqui</h2><p>Crie uma lista ou abra uma das suas para começar.</p></div></section></div>
+   </section>
+  </main>
+  <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
+  <div class="modal-screen hidden" id="itemEditor" role="dialog" aria-modal="true" aria-labelledby="editorTitle"><form class="modal" id="editForm"><div class="modal-top"><h2 id="editorTitle">Editar item</h2><button class="icon-close" type="button" id="closeEditor" aria-label="Fechar">×</button></div><label for="editName">Produto</label><input id="editName" maxlength="160" required><div class="two"><div><label for="editQty">Quantidade</label><input id="editQty" type="number" step="0.001" min="0.001" max="9999.999" required></div><div><label for="editUnit">Unidade</label><select id="editUnit"><option value="un">Unidade</option><option value="kg">Quilograma</option><option value="g">Grama</option><option value="l">Litro</option><option value="ml">Mililitro</option></select></div></div><label for="editPrice">Preço por unidade (R$)</label><input id="editPrice" inputmode="decimal" placeholder="Ainda não informado"><p class="form-note">Deixe vazio se ainda não souber o preço.</p><div class="modal-footer"><button type="button" class="secondary" id="cancelEditor">Cancelar</button><button type="submit" class="primary">Salvar alteração</button></div></form></div>
+ </div><script type="module" src="./app.js"></script>
+</body></html>
