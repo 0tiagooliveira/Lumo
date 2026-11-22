@@ -3,6 +3,7 @@ This intentionally avoids any live browser API, server, camera or OAuth claim.
 """
 import asyncio
 from pathlib import Path
+from tempfile import gettempdir
 from playwright.async_api import async_playwright
 HTML=(Path(__file__).resolve().parents[1]/'web/index.html').read_text()
 HTML=HTML.replace('<script type="module" src="./experience-auth.mjs"></script>','').replace('<link rel="stylesheet" href="./experience.css">','')
@@ -29,7 +30,7 @@ async def main():
   assert count==1,f'Item was not created: {count}'
   assert 'leite' in (await page.locator('body').inner_text()).lower()
   print('onboarding, 5 navigation tabs, quick add 2 leite: PASS')
-  await page.screenshot(path='/mnt/data/lumo_restored_list_390.png',full_page=True)
+  await page.screenshot(path=str(Path(gettempdir())/'lumo_restored_list_390.png'),full_page=True)
   await page.locator('[data-action="nav"][data-to="purchase"]').last.click()
   await page.wait_for_timeout(150)
   assert await page.locator('body').get_attribute('data-screen')=='purchase'
