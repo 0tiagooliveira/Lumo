@@ -1491,6 +1491,16 @@ async function tuneScannerTrack(stream){
   }catch{wrap.hidden=true;}
  }
 }
+let scannerMediaPickerPending=false;
+function openScannerImagePicker(id){
+ const input=document.getElementById(id);if(!input)return;
+ if(modal==='scanner'){
+  // O seletor/câmera nativos suspendem o Chrome Android; liberar o stream antes de sair.
+  stopScan();scannerMediaPickerPending=true;
+  const status=$('#scanner-status');if(status)status.textContent='Aguardando imagem da câmera ou galeria…';
+ }
+ input.click();
+}
 let state=C.createInitial(),view='home',listId=null,purchaseId=null,receiptId=null,modal=null,modalData={},onboardStep=0,onboardDraft={theme:'light',goal:'Gastar menos',listName:'Mercado do mês',mascot:'orange',accentColor:'#F97316'},draftReceipt=null,draftShoppingImport=null,scanStream=null,scanTimer=null,qrFallback=null,scanBusy=false,scannerFacing='environment',scanContext='product',toastTimer=null,idb=null,dbFallback=false,filter='',savingPromise=Promise.resolve(),readonly=false;
 const BRAND_PALETTE=[
  {name:'Laranja',hex:'#F97316'},{name:'Tangerina',hex:'#FF8A00'},{name:'Coral',hex:'#F2545B'},{name:'Morango',hex:'#E11D48'},
@@ -2143,13 +2153,13 @@ case'receipt-to-purchase':{const r=state.receipts.find(x=>x.id===id);if(!r)retur
 case'delete-receipt':showModal('confirm',{kind:'delete-receipt',id,title:'Apagar nota?',description:'O registro da nota será excluído. A compra vinculada, se existir, será mantida, mas perderá o vínculo ao documento.',button:'Excluir nota'});break;
 case'edit-receipt':showModal('receipt-edit',{id});break;
 case'open-receipt-link':{const r=state.receipts.find(x=>x.id===id);const link=C.invoiceUrl(r?.qrUrl);if(link)window.open(link,'_blank','noopener,noreferrer');else toast('Link fiscal indisponível.');break;}
-case'camera-image':$('#scanner-file')?.click();break;
-case'camera-capture':$('#scanner-capture')?.click();break;
+case'camera-image':openScannerImagePicker('scanner-file');break;
+case'camera-capture':openScannerImagePicker('scanner-capture');break;
 case'label-photo':$('#product-label-photo')?.click();break;
 case'return-label':modal='item-edit';modalData=labelOrigin;render();break;
 case'label-name-select':{const selected=labelCandidates[Number(el.dataset.index)];if(!selected)return;modal='item-edit';modalData={...labelOrigin,name:selected,sourceHint:'Nome sugerido a partir da foto; confirme antes de salvar.'};render();toast('Sugestão preenchida. Confira e salve.');break;}
 case'qr-gallery':scanContext='note';$('#file-image-upload')?.click();break;
-case'qr-camera-photo':scanContext='note';$('#file-qr-camera')?.click();break;
+case'qr-camera-photo':scanContext='note';openScannerImagePicker('file-qr-camera');break;
 case'retry-scan':{stopScan();candidateScan={value:'',context:'',time:0,hits:0};render();requestAnimationFrame(()=>initScan());break;}
 case'scanner-alt-engine':{
  // Keep the local camera running while an optional library loads. Never blank the screen.
@@ -2315,33 +2325,56 @@ async function recognizeProductLabel(file){
  if(!labelCandidates.length)throw Error('A foto não mostrou um nome legível. Tente outra foto ou digite manualmente.');
  modal='label-candidates';render();toast('Encontrei sugestões. Confirme a correta.');
 }
-async function handleFile(e){const target=e.target,id=target?.id,file=target?.files?.[0];if(!file)return;try{if(id==='product-label-photo'){await recognizeProductLabel(file);}
+async function handleFile(e){const target=e.target,id=target?.id,file=target?.files?.[0];if(['scanner-file','scanner-capture'].includes(id))scannerMediaPickerPending=false;if(!file)return;try{if(id==='product-label-photo'){await recognizeProductLabel(file);}
 else if(id==='file-xml'){if(file.size>6_000_000)throw Error('XML maior que 6 MB.');const content=await file.text();draftReceipt=C.parseInvoiceXML(content);applyLearnedMarketToDraft(draftReceipt);if(draftReceipt.key){const fiscal=C.validateAccessKey(draftReceipt.key);draftReceipt.fiscalIssues=fiscal.issues;draftReceipt.fiscalValidFormat=fiscal.valid;}showModal('receipt-review');}
 else if(id==='file-photo'){if(file.size>14_000_000)throw Error('Foto maior que 14 MB.');const photo=await shrinkImage(file);draftReceipt={id:uid(),source:'Foto do cupom',store:'',date:todayLocal(),totalCents:0,items:[],photo,importedAt:now(),payment:'Não informado'};showModal('receipt-review');toast('Foto anexada. Reconhecimento de texto opcional na próxima etapa.');}
 else if(['scanner-file','scanner-capture','file-image-upload','file-qr-camera'].includes(id)){
  if(file.size>16_000_000)throw Error('A imagem é muito grande (máximo 16 MB).');
  if(!file.type.startsWith('image/'))throw Error('Selecione uma imagem da câmera ou galeria.');
- toast('Analisando a imagem. Tentando diferentes enquadramentos…');
+ toast('Analisando a foto, sem reabrir a câmera…');
+ const status=$('#scanner-status');if(status&&modal==='scanner')status.textContent='Lendo a imagem selecionada. A câmera permanece desligada durante a análise.';
+ const prepared=await prepareScannerImage(file);
  let decoded=null;
- decoded=await decodeWithNativeDetector(file,scanContext);
- if(!decoded&&scanContext==='product')decoded=await decodeWithOfflineEAN(file,true);
+ decoded=await decodeWithNativeDetector(prepared,scanContext);
+ if(!decoded&&scanContext==='product')decoded=await decodeWithOfflineEAN(prepared,true);
+ if(!decoded&&scanContext==='note'){
+  try{decoded=await decodeWithJsQR(prepared);}catch(err){console.warn('Leitor QR da imagem:',err?.message||err);}
+ }
  if(!decoded){
    try{
     stopScan();await loadHtml5Scanner();
     if(!window.Html5Qrcode)throw Error('Leitor de imagem indisponível.');
     const holder=document.createElement('div');holder.id='image-scan-temp';holder.className='qr-image-decoder';document.body.appendChild(holder);
     const scanner=new window.Html5Qrcode(holder.id,{verbose:false});
-    try{decoded=await scanner.scanFile(file,true);}finally{try{scanner.clear();}catch{}holder.remove();}
+    try{decoded=await scanner.scanFile(prepared,true);}finally{try{scanner.clear();}catch{}holder.remove();}
    }catch(err){console.warn('Primeiro leitor de imagem não encontrou o código:',err?.message||err);}
  }
- if(!decoded&&(['file-image-upload','file-qr-camera'].includes(id)||scanContext==='note')){
-   try{decoded=await decodeWithJsQR(file);}catch(err){console.warn('Decodificador QR alternativo:',err?.message||err);}
- }
- if(!decoded){if(scanContext==='product'){modalData={name:'',barcode:'',sourceHint:'O código de barras não foi lido.'};modal='item-edit';render();toast('Não achei o EAN nesta foto. Use “Reconhecer nome pela embalagem” para tentar identificar o texto.');return;}throw Error('QR/código não encontrado. Aproxime e ilumine a imagem, sem reflexos; também pode colar a chave ou o link.');}
+
+ if(!decoded){if(scanContext==='product'){modalData={name:'',barcode:'',sourceHint:'O código de barras não foi lido.'};modal='item-edit';render();toast('Não achei o EAN nesta foto. Use “Reconhecer nome pela embalagem” para tentar identificar o texto.');return;}throw Error('QR não encontrado na foto. Mantenha os quatro cantos visíveis, sem reflexos, ou cole o link da consulta.');}
  await handleCode(decoded,['file-image-upload','file-qr-camera'].includes(id)?'note':scanContext);
 }
 else if(id==='file-backup'){if(file.size>30_000_000)throw Error('Backup muito grande.');const obj=JSON.parse(await file.text());if(!obj||!Array.isArray(obj.lists)||!Array.isArray(obj.items)||!Array.isArray(obj.purchases)||!Array.isArray(obj.receipts))throw Error('Formato de backup inválido.');showModal('backup-confirm',{fileName:file.name,data:obj});}
-}catch(err){console.error(err);toast(err.message||'Arquivo não pôde ser lido.');}finally{target.value='';}}
+}catch(err){console.error(err);if(modal==='scanner'){const status=$('#scanner-status');if(status)status.textContent='Não foi possível ler a foto. Toque em Foto para repetir ou em Tentar novamente para ligar a câmera.';}toast(err.message||'Arquivo não pôde ser lido.');}finally{target.value='';}}
+async function prepareScannerImage(file){
+ // Fotos grandes ocupam muita memória ao serem abertas pelos três decodificadores.
+ // Reduzir uma única vez mantém a região do QR e protege o Chrome em Android.
+ let bitmap=null;
+ try{
+  bitmap=await createImageBitmap(file);
+  const edge=Math.max(bitmap.width,bitmap.height);
+  if(edge<=2200)return file;
+  const factor=2200/edge,canvas=document.createElement('canvas');
+  canvas.width=Math.max(1,Math.round(bitmap.width*factor));
+  canvas.height=Math.max(1,Math.round(bitmap.height*factor));
+  const ctx=canvas.getContext('2d');
+  if(!ctx)return file;
+  ctx.drawImage(bitmap,0,0,canvas.width,canvas.height);
+  const blob=await new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(Error('Não foi possível reduzir a foto.')),'image/jpeg',.88));
+  canvas.width=canvas.height=0;
+  return new File([blob],'lumo-qr-otimizado.jpg',{type:'image/jpeg'});
+ }catch(err){console.warn('Foto sem pré-processamento:',err?.message||err);return file;}
+ finally{bitmap?.close?.();}
+}
 function shrinkImage(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onerror=()=>reject(Error('Erro ao ler imagem.'));reader.onload=()=>{const img=new Image();img.onerror=()=>reject(Error('Imagem inválida.'));img.onload=()=>{const max=1100,scale=Math.min(1,max/Math.max(img.width,img.height)),w=Math.round(img.width*scale),h=Math.round(img.height*scale),canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;const ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,w,h);resolve(canvas.toDataURL('image/jpeg',.66));};img.src=reader.result;};reader.readAsDataURL(file);});}
 const scriptsLoading=new Map();
 const JSQR_CDN='https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
@@ -2675,9 +2708,10 @@ document.addEventListener('error',e=>{if(e.target?.matches?.('img[data-product-i
 document.addEventListener('visibilitychange',()=>{
  if(document.hidden&&modal==='scanner'){
   stopScan();
-  const s=$('#scanner-status');if(s)s.textContent='Câmera pausada para economizar memória. Toque em Tentar novamente quando voltar.';
+  const s=$('#scanner-status');if(s)s.textContent=scannerMediaPickerPending?'Aguardando o retorno da câmera ou galeria nativa.':'Câmera pausada para economizar memória. Toque em Tentar novamente quando voltar.';
  }
 });
+document.addEventListener('cancel',event=>{if(['scanner-file','scanner-capture'].includes(event.target?.id)&&scannerMediaPickerPending){scannerMediaPickerPending=false;const s=$('#scanner-status');if(s&&modal==='scanner')s.textContent='Seleção cancelada. Toque em Tentar novamente para voltar à câmera.';}},true);
 window.addEventListener('pagehide',()=>stopScan());
 window.addEventListener('beforeunload',()=>stopScan());
 window.addEventListener('lumo:auth-ready',()=>{void load();},{once:true});
