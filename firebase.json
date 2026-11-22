@@ -48,6 +48,7 @@
         "source": "**",
         "destination": "/index.html"
       }
-    ]
+    ],
+    "site": "uselumo"
   }
 }
