@@ -1,29 +1,48 @@
-# Lumo
+# Lumo — Beta privada | 22/11/2026
 
-Aplicativo de compras compartilhadas, com listas, modo mercado, leitura de códigos, preços, histórico e conciliação fiscal.
+Primeiro corte funcional do serviço online, **não homologado em dois celulares reais**. Criado a partir das decisões de produto no Drive, mantendo o [MVP v1.7 original preservado](https://github.com/0tiagooliveira/Lumo/tree/work/bootstrap-2026-11-22/legacy) como baseline, sem alegar que suas funções completas já foram migradas.
 
-## Estado da base (22/11/2026)
+## Componentes
 
-Repositório inicializado para preservar e auditar as fontes. **Não há Beta online aprovada**. O código funcional mais recente recuperado é o pacote local da Sprint 3 (FastAPI/JavaScript); o MVP v1.7 é a referência histórica visual e funcional. A última árvore corrigida no computador Windows ainda precisa ser comparada antes de declarar qualquer versão definitiva.
+- `web/`: frontend leve em HTML/CSS/JavaScript (sem dependências externas de build), Conta Google como login principal via OAuth PKCE do Supabase (e-mail/senha apenas para contas legadas), listas e itens compartilhados por RPC, convite com token e expiração, marcação de itens, edição de quantidade e preço, PWA instalável, cache e fila offline IndexedDB com operation ID e ACK.
+- `supabase/`: migração canônica **aplicada em Supabase e versionada no GitHub**: [20261122_lumo_beta_privada_foundation.sql](https://github.com/0tiagooliveira/Lumo/blob/work/bootstrap-2026-11-22/supabase/migrations/20261122_lumo_beta_privada_foundation.sql). O arquivo `*.DRAFT.sql` do ZIP é apenas estudo preliminar e não deve ser aplicado; use a migração canônica do GitHub.
+- `firebase.json`: configuração de Hosting **não publicada**.
+- `tests/`: verificações Node dos contratos de preço, quantidades e operações. Também foram testados 50 Python + 18 Node do laboratório da Sprint 3 no trabalho anterior, não equivalentes ao novo frontend.
 
-## Prioridades
+## Executar sem publicar
 
-1. Preservar integralmente as funcionalidades e os sete mascotes, com melhorias pontuais.
-2. Criar autenticação e autorização por lista (Supabase Auth, PostgreSQL e RLS).
-3. Implementar sincronização offline com ACK real, idempotência e resolução de conflitos.
-4. Manter preço em centavos, produtos sem preço como NULL e histórico imutável.
-5. Preparar PWA HTTPS no Firebase Hosting; jamais publicar o laboratório FastAPI atual sem autenticação e revisão de segurança.
-6. Automatizar testes Python, JavaScript e Playwright, além de testes com dois celulares reais.
+```bash
+npm run check
+python -m http.server 5173 --directory web
+```
 
-## Documentos de referência
+Abra `http://localhost:5173` no seu computador. O código de configuração contém só a chave pública do projeto Supabase (nunca service role). O Google OAuth foi implementado em código com PKCE/S256, mas o provedor Google no Supabase e seu Client ID/Secret ainda precisam ser configurados. Não foi verificado login Google real com duas contas. Veja `docs/ADR-001-LOGIN-GOOGLE.md` para o procedimento seguro.
 
-- [Decisões registradas no Drive](https://docs.google.com/document/d/1SaeMRVCzcSHl6u7VFvTSV47sx3ehxt_Ortn5M7E2ESs/edit)
-- [Modelo de dados e segurança S4-18](https://docs.google.com/document/d/1Hzk6xzo0L_lG1t6XoiuSQBzgcGGySuLEFyvjfYxJm3A/edit)
-- [Baseline preservada](https://docs.google.com/document/d/1k9le4dEao5h-wjE3YbeMLRZbw_cnkTg6NupJn3guKWc/edit)
-- [Cronograma do piloto de 30/11](https://docs.google.com/spreadsheets/d/18Vd3ZlvMPhUkB-Ns7eHmlkw-gyjz7cr4/edit)
+Para produção, **não publique este protótipo** até concluir a matriz DB01–DB20, configurar cadastro por convite e validar autenticação, revogação, offline, backup/restore, PWA e scanner em Android/iPhone reais.
 
-## Segurança e contribuição
+## Firebase Hosting
 
-Não enviar dados fiscais reais, chaves de acesso fiscais, tokens, senhas, credenciais, service-role ou dumps pessoais para este repositório público. Mudanças de backend e interface devem ser feitas em branch, com teste, evidência e revisão antes de mesclar em main.
+1. Ter projeto e site Firebase vinculados ao usuário; ainda não identificado e **nenhum deploy foi realizado**.
+2. Configurar URLs de redirecionamento de autenticação no Supabase antes de publicar.
+3. Instalar Firebase CLI em ambiente com rede, fazer login e selecionar um projeto explicitamente.
+4. Executar `firebase deploy --only hosting --project <id-real>` somente quando segurança e testes estiverem aprovados.
+5. Confirmar URL fornecida pelo Firebase e validar API, permissões e login de dois usuários.
 
-O plano de trabalho atual está em [docs/PLANO_2026-11-22.md](docs/PLANO_2026-11-22.md).
+## Limitações conhecidas
+
+- O frontend mostra e edita listas, mas não integra ainda scanner EAN, notas fiscais, histórico e os sete mascotes originais. Essas funcionalidades continuam preservadas no arquivo de referência, **não devem ser confundidas com funcionalidades da Beta nova**.
+- O conflito é detectado e preservado, com opção de revisar e reaplicar ou aceitar servidor; falta teste E2E real entre duas contas.
+- A sincronização usa polling de 18 segundos e reconsulta após ACK. Realtime privado ainda é uma melhoria futura, não promessa de tempo real instantâneo.
+- Sem backup externo automatizado e sem política completa de privacidade, sem aprovação da Beta para uso com dados sensíveis.
+- A migração aplicada nesta sessão cria tabelas de negócio, políticas RLS e funções RPC; a disponibilidade em dois celulares permanece não comprovada.
+
+Consulte `docs/VALIDACAO.md` para evidências e bloqueios.
+
+## Decisão explícita de produto — A01, 22/11/2026
+
+**Aprovado pelo usuário:** Conta Google como **login principal** da Beta privada.
+O botão Google é a ação primária; contas legadas com e-mail/senha permanecem em área recolhível, sem cadastro público novo na interface.
+O login real ainda **não está homologado**: é necessário habilitar o provedor no painel do Supabase e liberar usuários de teste no Google Auth Platform.
+Fluxo implementado: PKCE S256, redirecionamento controlado, código de uso único removido da URL, troca com Supabase Auth, validação de identidade com `/auth/v1/user`, sessão local e logout remoto quando possível.
+
+[Registro técnico e operacional](docs/ADR-001-LOGIN-GOOGLE.md).
