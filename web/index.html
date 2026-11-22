@@ -745,6 +745,15 @@ h1,h2,h3,h4,.display,.page-title,.hero h1,.onboard h1{font-weight:650!important;
 .catalog-source-pill{display:inline-block;font-size:11px;color:var(--muted);padding:3px 0}
 @media (prefers-reduced-motion:reduce){.catalog-product-thumb,.catalog-browse-card{animation:none!important;transition:none!important}}
 
+.paste-preview-list{max-height:min(61vh,530px);overflow-y:auto;overscroll-behavior:contain;padding-right:4px}
+.paste-preview-row{padding:13px 0;border-bottom:1px solid var(--border)}
+.paste-preview-row .paste-preview-head{display:flex;gap:10px;align-items:center;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:8px}
+.paste-preview-row .paste-preview-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(72px,.5fr) minmax(86px,.7fr);gap:8px}
+.paste-preview-row .paste-preview-grid label{font-size:11px;color:var(--muted);display:block;margin-bottom:4px}
+.paste-preview-row .input{padding:9px 10px;border-radius:12px;font-size:14px;width:100%;min-height:38px}
+.paste-preview-group{font-size:12px;font-weight:750;color:var(--ink2);margin-top:13px;padding:9px 10px;background:var(--soft);border-radius:11px}
+.paste-preview-warning{font-size:12px;color:#92400e;line-height:1.4;margin-top:5px}
+.paste-preview-status{font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--ink)}
 </style><title>Lumo</title><link rel="stylesheet" href="./experience.css"></head><body><div id="lumo-identity-gate" class="lumo-gate" role="region" aria-label="Entrar no Lumo">
 <div class="lumo-gate-card"><div class="lumo-gate-logo">lumo<span>.</span></div><div class="lumo-gate-fruit" aria-hidden="true">✳</div><h1>Suas compras, do seu jeito.</h1><p id="lumo-gate-message">Preparando seu espaço privado…</p><button type="button" id="lumo-login-google" class="lumo-google-login" hidden>Continuar com Google</button><p class="lumo-gate-hint">Navegação, mascotes, listas, scanner e histórico preservados do MVP.</p></div></div><div id="lumo-cloud-dock" class="lumo-cloud-dock" hidden><button id="lumo-cloud-open" type="button" aria-haspopup="dialog">Nuvem e convites</button><span id="lumo-cloud-status" role="status" aria-live="polite">Dados locais</span><button id="lumo-cloud-logout" type="button">Sair</button></div><dialog id="lumo-cloud-panel" class="lumo-cloud-panel" aria-label="Listas compartilhadas"><div class="lumo-panel-top"><strong>Compartilhar com segurança</strong><button id="lumo-cloud-close" type="button" aria-label="Fechar">×</button></div><p id="lumo-cloud-desc">As listas só são compartilhadas após sua confirmação. Notas, histórico e fotos permanecem locais nesta etapa.</p><div id="lumo-cloud-current" class="lumo-current-list"></div><button id="lumo-cloud-activate" class="lumo-cloud-primary" type="button">Conectar esta lista</button><button id="lumo-cloud-create-invite" class="lumo-cloud-secondary" type="button" hidden>Criar convite de 24 horas</button><button id="lumo-cloud-share-text" class="lumo-cloud-secondary" type="button">Compartilhar como texto</button><div class="lumo-invite-line"><label for="lumo-invite-input">Recebeu um convite?</label><input id="lumo-invite-input" autocomplete="off" placeholder="Cole o código ou link do convite"><button id="lumo-cloud-redeem" type="button">Aceitar</button></div><div id="lumo-cloud-conflicts" aria-live="polite"></div><button id="lumo-cloud-refresh" class="lumo-cloud-secondary" type="button">Buscar alterações</button><p class="lumo-cloud-warning" id="lumo-cloud-warning" role="status">O scanner e o histórico continuam no seu aparelho até a próxima etapa da integração.</p></dialog><div id="app" role="application" aria-label="Aplicativo de compras"><div class="boot"><span class="boot-orb">●</span><p>Preparando suas compras...</p></div></div><div id="toast" role="status" aria-live="polite"></div><script>
 /* Altere somente este arquivo quando escolher o nome definitivo. */
@@ -1403,7 +1412,7 @@ const _scanCameraError=err=>{
  if(name==='SecurityError'||!navigator.mediaDevices?.getUserMedia)return 'Este arquivo não oferece acesso seguro à câmera. Abra o Lumo em HTTPS no Chrome.';
  return 'Não consegui abrir a câmera. '+String(err?.message||'Tente novamente.');
 };
-let state=C.createInitial(),view='home',listId=null,purchaseId=null,receiptId=null,modal=null,modalData={},onboardStep=0,onboardDraft={theme:'light',goal:'Gastar menos',listName:'Mercado do mês',mascot:'orange',accentColor:'#F97316'},draftReceipt=null,scanStream=null,scanTimer=null,qrFallback=null,scanBusy=false,scannerFacing='environment',scanContext='product',toastTimer=null,idb=null,dbFallback=false,filter='',savingPromise=Promise.resolve(),readonly=false;
+let state=C.createInitial(),view='home',listId=null,purchaseId=null,receiptId=null,modal=null,modalData={},onboardStep=0,onboardDraft={theme:'light',goal:'Gastar menos',listName:'Mercado do mês',mascot:'orange',accentColor:'#F97316'},draftReceipt=null,draftShoppingImport=null,scanStream=null,scanTimer=null,qrFallback=null,scanBusy=false,scannerFacing='environment',scanContext='product',toastTimer=null,idb=null,dbFallback=false,filter='',savingPromise=Promise.resolve(),readonly=false;
 const BRAND_PALETTE=[
  {name:'Laranja',hex:'#F97316'},{name:'Tangerina',hex:'#FF8A00'},{name:'Coral',hex:'#F2545B'},{name:'Morango',hex:'#E11D48'},
  {name:'Rosa',hex:'#E9358C'},{name:'Framboesa',hex:'#BE185D'},{name:'Pêssego',hex:'#F79B50'},{name:'Violeta',hex:'#7C3AED'},
@@ -1701,6 +1710,31 @@ function formModal(title,inner,submit='Salvar',other='Cancelar',id='modal-form')
 let labelCandidates=[],labelOrigin={};
 function modalHTML(){const d=modalData,li=state.lists.find(x=>x.id===d.id),it=state.items.find(x=>x.id===d.id),p=state.purchases.find(x=>x.id===d.id),rec=state.receipts.find(x=>x.id===d.id);switch(modal){case'list-edit':return formModal(li?'Editar lista':'Nova lista',`${field('Nome da lista','name',li?.name||'', 'text','required maxlength="80" autofocus')}${listIconPicker(li?.icon||'🛍️')}${li?`<button type="button" class="btn btn-danger btn-full mb-20" data-action="delete-list" data-id="${li.id}">${icon('trash')} Excluir lista</button>`:''}`,li?'Salvar lista':'Criar lista','Cancelar','list-edit');
 case'item-edit':return formModal(it?'Editar produto':'Adicionar produto',`${field('Nome','name',it?.name||d.name||'','text','required maxlength="120" autofocus')}${field('Detalhes / marca','details',it?.details||d.details||'','text','maxlength="160"')}${field('Código EAN/GTIN','barcode',it?.barcode||d.barcode||'','text','inputmode="numeric" maxlength="32"')}${d.sourceHint?`<p class="label-fallback-note">${esc(d.sourceHint)}</p>`:''}${(d.barcode||d.sourceHint)?`<p class="label-fallback-note">${d.name?'Confira o nome encontrado antes de salvar.':'EAN identificado, mas produto não encontrado nas bases. Você pode fotografar o nome da embalagem para sugerirmos o cadastro.'}</p><button type="button" class="btn btn-outline btn-full mb-14" data-action="label-photo">${icon('camera',17)} Reconhecer nome pela embalagem</button><input type="file" id="product-label-photo" class="file-control" accept="image/*" capture="environment">`:''}${selectField('Categoria','category',['Mercearia','Padaria','Laticínios','Carnes','Hortifruti','Higiene e limpeza','Bebidas','Farmácia','Outros'],it?.category||d.category||C.category(d.name))}<div class="two-cols">${field('Quantidade','qty',it?.qty??d.qty??1,'number','min="0.001" step="any" required')}${selectField('Unidade','unit',['un','kg','g','L','mL','pacote','caixa','dúzia'],it?.unit||d.unit||'un')}</div>${field('Preço unitário (R$)','price',it?.unitPriceCents?String((it.unitPriceCents/100).toFixed(2)).replace('.',','):d.unitPriceCents?String((d.unitPriceCents/100).toFixed(2)).replace('.',','):'','text','inputmode="decimal" placeholder="Ex.: 4,99"')}${selectField('Situação','status',['pending','bought','missing','later'],it?.status||'pending')}${it?`<button type="button" class="btn btn-danger btn-full mb-20" data-action="delete-item" data-id="${it.id}">${icon('trash')} Excluir este item</button>`:''}`,'Salvar produto','Cancelar','item-edit');
+case'paste-preview':{
+ const batch=draftShoppingImport;
+ if(!batch)return '';
+ const list=batch.items.map((entry,i)=>{
+  const prev=i?batch.items[i-1].group:null;
+  const group=entry.group!==prev?'<div class="paste-preview-group">'+esc(entry.group)+'</div>':'';
+  const price=entry.totalCents===null?'':String((entry.unitPriceCents/100).toFixed(2)).replace('.',',');
+  const issue=entry.issues.length?'<p class="paste-preview-warning">Revisar: '+esc(entry.issues.join('; '))+'</p>':'';
+  const original=entry.totalCents===null?'Valor não informado':('Total anotado: '+money(entry.totalCents)+(entry.qty===1?'':' · unitário estimado '+money(entry.unitPriceCents)));
+  return group+'<div class="paste-preview-row"><div class="paste-preview-head"><label><input type="checkbox" name="include_'+i+'" checked> Incluir</label><span>Linha '+entry.line+' · '+esc(entry.unit)+'</span><select class="paste-preview-status" name="status_'+i+'" aria-label="Situação do item">'+
+    '<option value="pending" '+(entry.status==='pending'?'selected':'')+'>Para comprar [ ]</option>'+
+    '<option value="bought" '+(entry.status==='bought'?'selected':'')+'>Marcado [X]</option></select></div>'+
+    '<div class="paste-preview-grid">'+
+    '<div><label>Produto</label><input class="input" name="name_'+i+'" value="'+esc(entry.name)+'" maxlength="120" required></div>'+
+    '<div><label>Quantidade</label><input class="input" type="number" min="0.001" step="any" name="qty_'+i+'" value="'+esc(entry.qty)+'" required></div>'+
+    '<div><label>Preço/un. R$</label><input class="input" name="price_'+i+'" inputmode="decimal" value="'+price+'" placeholder="—"></div>'+
+    '</div><small>'+esc(original)+'</small>'+issue+'</div>';
+ }).join('');
+ return formModal('Conferir lista antes de importar',
+  '<p class="small muted mb-14">Encontrei '+batch.counts.total+' itens em '+batch.headingCount+' seções. Marcação [X] significa já marcado/comprado, mas você pode mudar. Os valores R$ foram interpretados como <strong>total da linha</strong> para estimar o preço unitário.</p>'+
+  (batch.counts.review?'<div class="banner mb-14">Atenção: '+batch.counts.review+' itens precisam de revisão (valores, quantidades ou nomes repetidos).</div>':'')+
+  '<div class="paste-preview-list">'+list+'</div>'+
+  '<p class="small muted mt-14">O Lumo só salva os itens depois de você confirmar. Títulos e linhas vazias não serão adicionados.</p>',
+  'Importar itens selecionados','Cancelar','paste-confirm');
+}
 case'paste-list':return formModal('Colar uma lista',`<p class="small muted mb-20">Cole um produto por linha. Exemplos: <strong>2 leite</strong>, <strong>3 kg arroz</strong>, <strong>banana</strong>. Os itens serão adicionados juntos.</p><div class="form-field"><label for="paste-text">Produtos</label><textarea class="input" rows="9" name="paste" id="paste-text" placeholder="2 leite\n3 pão\nArroz\nBanana" required autofocus></textarea></div>`,'Adicionar produtos','Cancelar','paste-list');
 case'finish':{const bought=activeItems().filter(x=>x.status==='bought');return formModal('Conferir e concluir compra',`<div class="soft-card mb-20"><div class="eyebrow">NO CARRINHO</div><div class="display mt-6">${money(C.listTotal(bought))}</div><p class="small muted">${bought.length} produtos marcados como comprados</p></div>${field('Nome do estabelecimento','store','','text','required maxlength="120" placeholder="Ex.: Supermercado" autofocus')}${field('Data','date',todayLocal(),'date','required')}${selectField('Forma de pagamento','payment',['Não informado','Pix','Dinheiro','Cartão de crédito','Cartão de débito','Vale-alimentação','Outro'],'Não informado')}${field('Desconto total em R$','discount','0','text','inputmode="decimal"')}${field('Observação','note','','text','maxlength="200"')}<div class="banner mb-20">Ao concluir, salvaremos uma cópia dos itens e valores no histórico. Você poderá corrigir os dados depois.</div>`,'Salvar compra','Voltar','finish');}
 case'purchase-edit':return formModal('Corrigir compra',`${field('Estabelecimento','store',p?.store||'', 'text','required')}${field('Data','date',p?.date||'','date','required')}${selectField('Pagamento','payment',['Não informado','Pix','Dinheiro','Cartão de crédito','Cartão de débito','Vale-alimentação','Outro'],p?.payment||'Não informado')}${field('Total pago em R$','total',p?(p.totalCents/100).toFixed(2).replace('.',','):'','text','inputmode="decimal"')}${field('Desconto em R$','discount',p?(p.discountCents/100).toFixed(2).replace('.',','):'0','text','inputmode="decimal"')}${field('Observação','note',p?.note||'','text')}`,'Salvar correção','Cancelar','purchase-edit');
@@ -2076,7 +2110,41 @@ case'item-edit':{
  });
  closeModal();toast(result?.merged?`Produto repetido: ${result.item.name}, agora ${result.item.qty} ${result.item.unit}.`:'Produto salvo.');break;}
 
-case'paste-list':{const lines=String(x.paste||'').split(/\r?\n|;/).map(t=>t.trim()).filter(Boolean).slice(0,300);let added=0;change(()=>{for(const line of lines){const parsed=C.parseQuick(line.replace(/^[-*•]\s*/,''));if(parsed&&addItem(parsed))added++;}});closeModal();toast(`${added} produto(s) adicionados juntos.`);break;}
+case'paste-list':{
+ const text=String(x.paste||'').trim();
+ if(!text)return toast('Cole uma lista antes de continuar.');
+ try{
+  const {parseShoppingList}=await import('./shopping-list-parser.mjs');
+  draftShoppingImport=parseShoppingList(text);
+  if(!draftShoppingImport.items.length)return toast('Nenhum produto reconhecido. Confira a lista.');
+  modal='paste-preview';render();
+ }catch(err){console.error('Importação de lista:',err);toast('Falha ao organizar a lista. Tente novamente.');}
+ break;}
+case'paste-confirm':{
+ const batch=draftShoppingImport;if(!batch)return toast('A prévia expirou. Cole a lista novamente.');
+ const pending=[];
+ for(let i=0;i<batch.items.length;i++){
+  if(!Object.prototype.hasOwnProperty.call(x,'include_'+i))continue;
+  const entry=batch.items[i];
+  const name=String(x['name_'+i]||'').trim().slice(0,120);
+  const qty=Number(String(x['qty_'+i]||'').replace(',','.'));
+  const raw=String(x['price_'+i]||'').trim();
+  if(!name)return toast('Confira o nome na linha '+entry.line+'.');
+  if(!Number.isFinite(qty)||qty<=0||qty>10000)return toast('Quantidade inválida na linha '+entry.line+'.');
+  if(raw&&!/^\d{1,7}(?:[,.]\d{1,2})?$/.test(raw))return toast('Preço inválido na linha '+entry.line+'. Use, por exemplo, 4,99.');
+  pending.push({name,qty,unit:entry.unit,category:entry.category,status:x['status_'+i]==='bought'?'bought':'pending',unitPriceCents:raw?C.toCents(raw):0});
+ }
+ if(!pending.length)return toast('Selecione ao menos um item.');
+ if(!activeList())return toast('Crie uma lista antes de importar.');
+ let count=0,merged=0;
+ change(()=>{for(const entry of pending){
+  const r=addItem(entry);if(!r)continue;
+  count++;if(r.merged)merged++;else r.item.status=entry.status;
+ }});
+ draftShoppingImport=null;closeModal();
+ toast(count+' itens processados'+(merged?' · '+merged+' agrupados com itens já existentes':'')+'.');
+ break;}
+
 case'finish':{let bought=activeItems().filter(i=>i.status==='bought');if(!bought.length)return toast('Marque ao menos um item no carrinho.');let p;change(()=>{const discount=C.toCents(x.discount);p={id:uid(),listId:activeList().id,store:x.store.trim(),date:x.date,payment:x.payment,note:x.note||'',discountCents:discount,totalCents:Math.max(0,C.listTotal(bought)-discount),items:C.clone(bought).map(i=>({...i,originalName:i.name,totalCents:C.lineTotal(i)})),createdAt:now(),receiptId:null};state.purchases.push(p);});closeModal();go('purchase-detail',{purchaseId:p.id});burstAt(window.innerWidth/2,Math.min(window.innerHeight*.38,340),true);toast('Compra guardada no histórico! 🧡');void 0;break;}
 case'purchase-edit':{change(()=>{const p=state.purchases.find(i=>i.id===modalData.id);if(!p)return;Object.assign(p,{store:x.store.trim(),date:x.date,payment:x.payment,totalCents:C.toCents(x.total),discountCents:C.toCents(x.discount),note:x.note,updatedAt:now()});});closeModal();toast('Compra corrigida.');break;}
 case'purchase-item':{change(()=>{const p=state.purchases.find(i=>i.id===modalData.id),it=p?.items[Number(modalData.index)];if(!it)return;Object.assign(it,{name:x.name.trim(),qty:Number(x.qty),unit:x.unit,unitPriceCents:C.toCents(x.price),totalCents:C.toCents(x.total)});p.updatedAt=now();});closeModal();toast('Item corrigido. A nota original foi preservada.');break;}
