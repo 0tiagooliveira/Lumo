@@ -7,7 +7,7 @@ export function extractVoiceItem(transcript) {
   let recognizedCommand = false;
   const patterns = [
     /^(?:por favor[, ]*)?(?:coloque|coloca|ponha|põe|poe|bota|adicione|adiciona|inclua|inclui|anote|anota)\s+(?:(?:na|à)\s+(?:minha\s+|nossa\s+)?lista(?:\s+de\s+compras)?\s*)?(?:(?:para|pra)\s+mim\s*)?/i,
-    /^(?:eu\s+)?(?:quero|gostaria\s+de|preciso\s+de)\s+(?:comprar|colocar|adicionar|incluir|anotar)\s+/i,
+    /^(?:eu\s+)?(?:quero|gostaria\s+de|preciso(?:\s+de)?)\s+(?:comprar|colocar|adicionar|incluir|anotar)\s+/i,
     /^(?:adicionar|incluir|colocar|anotar)\s+(?:na|à)\s+lista(?:\s+de\s+compras)?\s*/i,
     /^(?:me\s+)?(?:lembre|lembra)\s+(?:de\s+)?comprar\s+/i
   ];
