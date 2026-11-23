@@ -29,6 +29,28 @@ As três migrações remotas possuem versões `20261122182007`, `20261122182029`
 
 Antes de qualquer `supabase db push`, verificar `supabase migration list` no ambiente autenticado correto e conferir que somente a migração nova está pendente. O ajuste do histórico no GitHub não é prova de que a CLI local está configurada ou autorizada a escrever no projeto remoto.
 
+## Validação real em transação revertida (continuação da Sprint 3)
+
+Foi executada uma transação `BEGIN ... ROLLBACK` no projeto Supabase `kqfsvzsgxoxxahrpyemc`, contendo a definição **proposta** da função `lumo_apply_item`, três usuários sintéticos e nenhuma informação pessoal. Os testes exercitaram a função PostgreSQL real com `SET LOCAL ROLE authenticated` e identidades simuladas em `request.jwt.claim.sub`:
+
+- Criar lista e item inicialmente `in_cart`, sem retornar incorretamente a `pending`.
+- Excluir um produto e restaurá-lo preservando nome, quantidade, preço e estado local.
+- Gerar e aceitar convite com uma segunda identidade.
+- Permitir edição por membro convidado e, após revogação, **rejeitar também o replay do mesmo `operation_id`**.
+- Negar leitura por RLS a um membro revogado e a um terceiro não membro; negar escrita RPC ao terceiro.
+
+**Resultado: PASS.** Uma verificação após a transação confirmou **zero** usuários, listas e itens sintéticos persistidos; a versão nova não consta no histórico de migrações e a definição atual da função remota permaneceu intocada. Este teste não utiliza uma sessão OAuth real nem chamadas HTTP REST.
+
+Foi criado `tests/supabase_rpc_rollback.sql`, que executa o mesmo contrato no `psql` com `-v lumo_test_approved=1` e reversão obrigatória. Use-o somente em banco local ou de homologação autorizado e jamais coloque a URL de conexão ou a senha no repositório. O job `database-contract` executa este teste em PostgreSQL efêmero no GitHub Actions, com a estrutura mínima de autenticação em `tests/postgres_bootstrap.sql`; **o bootstrap é somente para CI e não reproduz todo o Supabase Auth**.
+
+### Separação dos níveis de evidência
+
+- **PostgreSQL real, SQL transacional e RLS:** testado com identidades sintéticas, sem gravação definitiva.
+- **PostgreSQL efêmero em CI:** executa baseline + migração nova + testes SQL sem segredos de produção.
+- **Google OAuth em dois dispositivos e REST real:** ainda não homologado.
+- **Câmera e PDF fiscal reais:** ainda não homologados.
+- **Aplicação da migração em produção:** não realizada.
+
 ## Consultas de auditoria não destrutivas
 
 ```sql
