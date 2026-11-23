@@ -23,6 +23,10 @@ A implementação da RPC `lumo_apply_item`, no ramo `p_action='add'`, lia nome, 
 
 **Estado da implantação:** somente proposta no GitHub. Não aplicar automaticamente no banco remoto até a revisão da migração e teste E2E. O código frontend publicado ainda não foi homologado com esta migração.
 
+## Atenção: histórico de migrações
+
+As três migrações já presentes no banco remoto têm versões completas `20261122182007`, `20261122182029` e `20261122192056`, enquanto os arquivos históricos do repositório usam prefixos curtos `20261122_`. **Antes de usar `supabase db push` ou outra aplicação automática**, conciliar os arquivos históricos com o histórico remoto para impedir duplicação de DDL. A migração nova usa prefixo completo de 14 dígitos, mas isso não corrige o descompasso histórico sozinho. Nenhuma migração foi aplicada nesta auditoria.
+
 ## Consultas de auditoria não destrutivas
 
 ```sql
