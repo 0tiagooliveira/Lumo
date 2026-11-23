@@ -175,3 +175,32 @@ test('falha ao salvar lista compartilhada não registra mapa remoto antes da hor
  assert.equal(recovery.state.lists.length,1,'Lista recebida novamente após reiniciar');
  recovery.stop();
 });
+
+
+test('resolver conflito remoto aguarda salvamento local e conserva conflito após falha',async()=>{
+ const user='00000000-0000-4000-8000-000000000719';
+ const listId='10000000-0000-4000-8000-000000000719';
+ const itemId='20000000-0000-4000-8000-000000000719';
+ const db=new FakeDB();let failSave=false;
+ const a=setup(user,db,[{id:listId,name:'Mercado'}],
+  [{id:itemId,listId,name:'Feijão',qty:1,unit:'un',unitPriceCents:800,status:'pending',barcode:''}],
+  {saveCheck:()=>failSave?Promise.reject(Error('falha simulada de IndexedDB')):Promise.resolve()});
+ await sleep(20);a.doc.get('lumo-cloud-activate').fire();await sleep(130);
+ const key='lumo-experience-sync-'+user,shadowKey=listId+':'+itemId;
+ const read=()=>JSON.parse(accountStores.get(user).get(key));
+ assert.equal(read().shadow[shadowKey].revision,1,'Original was confirmed locally');
+ db.items.set(itemId,{...db.items.get(itemId),quantity:2,revision:2,updated_at:new Date().toISOString()});
+ a.state.items[0].qty=3;
+ await a.sync.syncOnce();
+ assert.equal(read().conflicts.length,1,'Concurrent edit created a reviewable conflict');
+ const clickRemote=()=>a.doc.get('lumo-cloud-conflicts').handlers.click({
+  target:{closest:()=>({dataset:{cloudChoice:'remote',cloudIndex:'0'}})}
+ });
+ failSave=true;clickRemote();await sleep(25);
+ assert.equal(read().shadow[shadowKey].revision,1,'Failed local write must not ACK remote revision');
+ assert.equal(read().conflicts.length,1,'Conflict remains available for retry');
+ failSave=false;clickRemote();await sleep(25);
+ assert.equal(read().shadow[shadowKey].revision,2,'Revision confirmed after successful local write');
+ assert.equal(read().conflicts.length,0,'Conflict cleared only after durable local write');
+ a.stop();
+});
