@@ -31,6 +31,12 @@ A credencial privada foi adicionada pelo proprietário como segredo do GitHub Ac
 
 **Atenção:** o login pode falhar se os domínios/redirects não estiverem permitidos no projeto de autenticação Supabase e na configuração OAuth Google. Não declarar produção pronta sem validar esses caminhos.
 
+## Aprendizado automático do catálogo (fase local)
+
+Ao abrir listas com EAN/GTIN válido e foto ausente ou referência expirada, o Lumo consulta uma base pública autorizada com limites de **12 códigos por sessão** e **duas consultas simultâneas**, mantendo a compra utilizável mesmo com falhas de rede. A consulta pode adicionar ao catálogo **local** nome, marca, apresentação, foto e fonte, sem sobrescrever o nome ou o preço personalizado do item. O cache de referências é reavaliado após 14 dias quando o código é consultado novamente.
+
+Este não é um catálogo global: a base de produtos compartilhada no Supabase e os trabalhos automáticos de atualização ainda dependem da camada servidor com RLS, validação e respeito às licenças. O desenho está em `docs/CATALOGO_VIVO_ARQUITETURA_20261123.md` e o DDL de rascunho em `docs/sql/CATALOGO_VIVO_DDL_RASCUNHO.sql` na branch de desenvolvimento. A validação do DDL foi transacional com ROLLBACK e não alterou o banco definitivo.
+
 ## Atualização de confiabilidade
 
 A foto de um produto agora é invalidada quando o usuário altera o EAN ou muda a identificação de um item sem EAN; assim, uma embalagem anterior não fica associada ao produto novo. O teste Chromium cobre a troca do EAN de açúcar União 1 kg para 5 kg e verifica a fotografia correspondente. A revisão também aumenta a confiabilidade do deploy: grava um manifesto público com o SHA exato, impede cache da verificação e valida a versão servida pelo Firebase.
