@@ -9,6 +9,9 @@ export function attachCloudSync({legacy,account,session,status,panel}){
  const storageKey=`lumo-experience-sync-${account}`;
  let cloud=safeReadState(localStorage.getItem(storageKey));
  let running=false,debounce=null,interval=null,stopped=false;
+ // An empty successful RLS query can mean a list was revoked or archived.
+ // Never interpret this as a remote deletion or a completed sync.
+ let inaccessibleRemoteLists=new Set();
  const $=id=>document.getElementById(id);
  const notice=$('lumo-cloud-warning');
  const persist=()=>{try{localStorage.setItem(storageKey,JSON.stringify(cloud))}catch{message('Não foi possível guardar o estado da sincronização. Interrompa e exporte seu backup.');throw Error('Armazenamento local indisponível.')}};
@@ -22,6 +25,7 @@ export function attachCloudSync({legacy,account,session,status,panel}){
  const report=()=>{
   const count=Object.keys(cloud.lists).length;
   if(!navigator.onLine)status.textContent='Offline • alterações locais';
+  else if(inaccessibleRemoteLists.size)status.textContent=`${inaccessibleRemoteLists.size} lista(s) sem acesso à nuvem • dados locais preservados`;
   else if(cloud.conflicts.length)status.textContent=`${cloud.conflicts.length} conflito(s)`;
   else if(cloud.pending.length)status.textContent=`${cloud.pending.length} alteração(ões) pendente(s)`;
   else status.textContent=count?`${count} lista(s) na nuvem; histórico local`:'Listas locais • conectar nuvem';
@@ -35,7 +39,8 @@ export function attachCloudSync({legacy,account,session,status,panel}){
   $('lumo-cloud-activate').hidden=!list||connected;
   $('lumo-cloud-create-invite').hidden=!connected;
   $('lumo-cloud-create-invite').disabled=!navigator.onLine;
-  if(connected)$('lumo-cloud-desc').textContent='Esta lista tem sincronização de itens e quantidades no Supabase. Fotos, documentos fiscais e histórico permanecem locais nesta etapa.';
+  if(connected&&inaccessibleRemoteLists.has(mapped(id)))$('lumo-cloud-desc').textContent='O acesso a esta lista na nuvem está indisponível. Seus itens locais foram preservados. Verifique se o convite ou a permissão foi revogado antes de tentar novamente.';
+  else if(connected)$('lumo-cloud-desc').textContent='Esta lista tem sincronização de itens e quantidades no Supabase. Fotos, documentos fiscais e histórico permanecem locais nesta etapa.';
   else $('lumo-cloud-desc').textContent='Escolha uma lista e confirme para compartilhar apenas seus itens. Não enviaremos notas fiscais, fotos ou histórico.';
   const n=cloud.pending.length,c=cloud.conflicts.length;
   const conflictText=c?`${c} conflito(s) exigem revisão. Suas alterações não foram descartadas.`:'';
@@ -69,6 +74,7 @@ export function attachCloudSync({legacy,account,session,status,panel}){
  async function applyQueue(){
   for(const op of [...cloud.pending].sort((a,b)=>a.createdAt-b.createdAt)){
    if(!navigator.onLine)break;
+   if(inaccessibleRemoteLists.has(op.remoteListId))continue; // preserve the queued draft, do not replay after access loss.
    try{
     const result=await rpc('lumo_apply_item',{p_list:op.remoteListId,p_op:op.operation_id,p_action:op.action,p_item:op.remoteItemId,p_payload:op.payload,p_expected:op.expected_revision});
     if(result?.status==='conflict'){
@@ -194,15 +200,19 @@ export function attachCloudSync({legacy,account,session,status,panel}){
   try{
    await legacy.waitForLocalSave?.();
    const rows=await listRows();
+   const visible=new Set(rows.map(row=>row.id));
+   inaccessibleRemoteLists=new Set(Object.values(cloud.lists).filter(id=>!visible.has(id)));
    await mergeRemoteLists(rows);
    for(const [localId,remoteId] of Object.entries(cloud.lists)){
-    if(!localState().lists.find(l=>l.id===localId))continue;
+    if(inaccessibleRemoteLists.has(remoteId)||!localState().lists.find(l=>l.id===localId))continue;
     await reconcileList(localId,remoteId);
    }
    await applyQueue();
    // Read new ACKs and changes made on another phone after all writes.
    if(!cloud.pending.length&&!cloud.conflicts.length){
-    for(const [localId,remoteId] of Object.entries(cloud.lists))await reconcileList(localId,remoteId);
+    for(const [localId,remoteId] of Object.entries(cloud.lists)){
+     if(!inaccessibleRemoteLists.has(remoteId))await reconcileList(localId,remoteId);
+    }
    }
   }catch(err){message('Não foi possível atualizar a nuvem. Seus dados locais permanecem no aparelho. '+(err.message||''));}
   finally{running=false;report()}
