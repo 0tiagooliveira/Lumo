@@ -64,10 +64,12 @@ test('isolated HTTP: owner, editor, viewer, revocation, RLS, replay and restorat
  }),'Idempotent replay');
  assert.equal(replay.item.id,itemId);
  assert.equal(replay.item.revision,1,'Same operation cannot add duplicate item');
- forbidden(await rpc(a,'lumo_apply_item',{
+ const reused=await rpc(a,'lumo_apply_item',{
   p_list:listId,p_op:operationId,p_action:'add',p_item:itemId,
   p_payload:{...initial,quantity:20},p_expected:null
- }),'Reusing operation ID with different payload');
+ });
+ assert.equal(reused.status,409,'Modified payload with same operation UUID is a conflict');
+ assert.equal(reused.value?.code,'23505','Server explicitly rejects operation ID reuse');
 
  const ownerItems=ok(await call(a,'/list_items?select=id,name,state,quantity&list_id=eq.'+listId),'Owner reads own items');
  assert.equal(ownerItems.length,1);
