@@ -9,7 +9,10 @@ CREATE SCHEMA extensions;
 CREATE TABLE auth.users (id uuid PRIMARY KEY);
 CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
 LANGUAGE sql STABLE AS $lumo_auth$
- SELECT nullif(current_setting('request.jwt.claim.sub', true),'')::uuid;
+ SELECT coalesce(
+  nullif(current_setting('request.jwt.claim.sub', true),''),
+  nullif(current_setting('request.jwt.claims', true),'')::jsonb->>'sub'
+ )::uuid;
 $lumo_auth$;
 GRANT USAGE ON SCHEMA auth TO authenticated;
 GRANT EXECUTE ON FUNCTION auth.uid() TO authenticated;
