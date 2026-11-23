@@ -124,14 +124,14 @@ export function attachCloudSync({legacy,account,session,status,panel}){
  async function reconcileList(localListId,remoteListId){
   const remote=await itemsFor(remoteListId),remoteById=new Map(remote.map(x=>[x.id,x]));
   const state=localState();const locals=state.items.filter(x=>x.listId===localListId),localByRemote=new Map(locals.map(x=>[remoteIdForItem(x.id),x]));
-  const syncAdditions=[],syncUpdates=[],syncRemovals=[];
+  const syncAdditions=[],syncUpdates=[],syncRemovals=[],syncShadows=[];
   // Handle local operations first, preserving the payload in the queue before sending.
   for(const local of locals){
    const rid=uuidForLocal(local.id),server=remoteById.get(rid),shadow=cloud.shadow[keyFor(remoteListId,local.id)];
    let signature;try{signature=itemSignature(local);}catch(err){message(`${local.name}: ${err.message}`);continue;}
    if(cloud.pending.some(x=>x.localItemId===local.id&&x.remoteListId===remoteListId)||cloud.conflicts.some(x=>x.localItemId===local.id&&x.remoteListId===remoteListId))continue;
    if(server?.deleted_at){
-    if(shadow&&signature===shadow.signature){syncRemovals.push(local.id);saveShadow(remoteListId,local.id,server);}
+    if(shadow&&signature===shadow.signature){syncRemovals.push(local.id);syncShadows.push({localId:local.id,row:server});}
     else if(shadow){cloud.conflicts.push({localListId,remoteListId,localItemId:local.id,server,error:'Excluído no outro celular; alterações locais mantidas.'});persist();}
     else{cloud.conflicts.push({localListId,remoteListId,localItemId:local.id,server,error:'Item já excluído na nuvem com este identificador.'});persist();}
     continue;
@@ -145,12 +145,14 @@ export function attachCloudSync({legacy,account,session,status,panel}){
    }
    if(signature!==shadow.signature){
     if(server&&Number(server.revision)!==Number(shadow.revision)){
+     // Recupera ACK remoto persistido no aparelho antes do shadow (crash entre os dois).
+     if(signature===cloudSignature(server)){saveShadow(remoteListId,local.id,server);continue;}
      cloud.conflicts.push({localListId,remoteListId,localItemId:local.id,server,error:'Edição simultânea; alterações locais preservadas.'});persist();continue;
     }
     if(shadow.deleted){createPending(localListId,local.id,'restore',{},shadow.revision);continue;}
     createPending(localListId,local.id,'edit',itemPayload(local),shadow.revision);
    }else if(server&&Number(server.revision)!==Number(shadow.revision)){
-    syncUpdates.push({localId:local.id,row:server});saveShadow(remoteListId,local.id,server);
+    syncUpdates.push({localId:local.id,row:server});syncShadows.push({localId:local.id,row:server});
    }
   }
   // A deletion is an operation rather than silently disappearing from another device.
@@ -174,13 +176,19 @@ export function attachCloudSync({legacy,account,session,status,panel}){
     // Item was deleted here, not yet ACKed. Preserve the deletion request.
     continue;
    }
-   syncAdditions.push({server,localId:originalLocalId});saveShadow(remoteListId,originalLocalId,server);
+   syncAdditions.push({server,localId:originalLocalId});syncShadows.push({localId:originalLocalId,row:server});
   }
-  if(syncAdditions.length||syncUpdates.length||syncRemovals.length)legacy.applyRemote(current=>{
+  if(syncAdditions.length||syncUpdates.length||syncRemovals.length){
+   legacy.applyRemote(current=>{
    for(const localId of syncRemovals)current.items=current.items.filter(x=>x.id!==localId);
    for(const {localId,row} of syncUpdates){const item=current.items.find(x=>x.id===localId&&x.listId===localListId);if(item)Object.assign(item,{...fromCloud(row,localListId),id:localId,details:item.details,category:item.category});}
    for(const {server,localId} of syncAdditions)if(!current.items.some(x=>x.id===localId&&x.listId===localListId))current.items.push({...fromCloud(server,localListId),id:localId});
-  });
+   });
+   // A nuvem só é marcada como recebida depois que a gravação em IndexedDB terminou.
+   // Se fechar durante o salvamento, o próximo sync deve tentar o mesmo item novamente.
+   await legacy.waitForLocalSave?.();
+   for(const {localId,row} of syncShadows)saveShadow(remoteListId,localId,row);
+  }
  }
  async function syncOnce(){
   if(running||stopped||!navigator.onLine)return;
