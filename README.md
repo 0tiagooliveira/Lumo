@@ -17,7 +17,7 @@ Esta versão reaproveita a experiência integral do arquivo histórico `legacy/L
 - `web/experience.css` — superfícies de conta/compartilhamento sem reescrever o design original.
 - `web/beta.html` — interface antiga da Beta reduzida, mantida como laboratório técnico (nunca referência de UX).
 - `web/sw.js` — cache com versão nova; nunca armazena callback OAuth com código na URL.
-- `supabase/migrations/20261122_lumo_cloud_list_compat.sql` — migração aplicada: ligação idempotente de lista, renomeação segura e tombstones RLS para reconciliação.
+- `supabase/migrations/20261122192056_lumo_cloud_list_compat_and_tombstones.sql` — migração aplicada: ligação idempotente de lista, renomeação segura e tombstones RLS para reconciliação.
 - `tests/` — contratos Node, simulação de dois usuários, navegador Chromium estático.
 
 ## Contratos da primeira integração
