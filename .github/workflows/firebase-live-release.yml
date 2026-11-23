@@ -3,7 +3,7 @@ name: Publicar Lumo no Firebase Hosting — release controlada
 on:
   push:
     branches: ['release/uselumo-photos-20261123']
-    paths: ['.github/workflows/firebase-live-release.yml']
+    paths: ['.github/workflows/firebase-live-release.yml', 'firebase.json', 'web/**']
   workflow_dispatch:
 
 permissions:
@@ -35,6 +35,15 @@ jobs:
           if(!fs.readFileSync('web/experience-sync.mjs','utf8').includes('waitForLocalSave'))throw Error('Proteção contra perda de dados ausente');
           console.log('Target confirmado: Firebase lumo-515518 / uselumo. Fotos e sincronização incluídas.');
           NODE
+      - name: Registrar SHA da versão a publicar
+        run: |
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const release={app:'lumo',project:'lumo-515518',site:'uselumo',
+            commit:process.env.GITHUB_SHA,ref:process.env.GITHUB_REF,
+            publishedAt:new Date().toISOString()};
+          fs.writeFileSync('web/release.json',JSON.stringify(release,null,2)+'\n');
+          NODE
       - name: Exigir credencial de serviço privada e explícita
         run: |
           if [ -z "$FIREBASE_CREDENTIAL" ]; then
@@ -53,4 +62,11 @@ jobs:
             https://uselumo.web.app/ -o "$RUNNER_TEMP/lumo-published.html"
           grep -q 'lumo-identity-gate' "$RUNNER_TEMP/lumo-published.html"
           grep -q 'listProductArtwork' "$RUNNER_TEMP/lumo-published.html"
-          echo 'Firebase live respondeu com a interface Lumo e o componente de fotos.'
+          curl --fail --location --silent --show-error --retry 3 --retry-delay 3 \
+            "https://uselumo.web.app/release.json?sha=${GITHUB_SHA}" -o "$RUNNER_TEMP/lumo-release.json"
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const r=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/lumo-release.json','utf8'));
+          if(r.commit!==process.env.GITHUB_SHA||r.site!=='uselumo'||r.project!=='lumo-515518')throw Error('Firebase live não corresponde ao SHA publicado');
+          console.log('Firebase live confirmado no SHA '+r.commit);
+          NODE
