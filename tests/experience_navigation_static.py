@@ -56,6 +56,18 @@ async def main():
   await page.locator('[data-action="nav"][data-to="purchase"]').last.click()
   assert await page.locator('[data-item-id="photo-ean-check"] img.item-photo').count()==1, 'Shopping mode must also show photo'
   print('Trusted EAN image in list/purchase and safe fallback: PASS')
+  # Changing a barcode changes product identity. The old packshot must
+  # disappear or be replaced with the picture from the NEW matching GTIN.
+  await page.locator('[data-action="nav"][data-to="list"]').last.click()
+  await page.locator('[data-item-id="photo-ean-check"] [data-action="edit-item"]').click()
+  await page.locator('form[data-form="item-edit"] input[name="barcode"]').fill('7891910008353')
+  await page.locator('form[data-form="item-edit"] input[name="name"]').fill('Açúcar Refinado União 5kg')
+  await page.locator('form[data-form="item-edit"] button[type="submit"]').click()
+  newer=page.locator('[data-item-id="photo-ean-check"] img.item-photo')
+  assert await newer.count()==1, 'New EAN should resolve a matching catalog image'
+  assert '7891910008353' in (await newer.get_attribute('src')), 'Must show 5kg packshot, not prior 1kg'
+  print('Editing EAN refreshes the product packshot: PASS')
+
 
   await page.screenshot(path=str(Path(gettempdir())/'lumo_restored_list_390.png'),full_page=True)
   await page.locator('[data-action="nav"][data-to="purchase"]').last.click()
