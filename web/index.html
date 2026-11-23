@@ -1728,11 +1728,23 @@ function pumpPhotoLookups(){
   void (async()=>{
    const result=await Cat.queryOpenCatalog(code,{cache:{},timeoutMs:3500});
    const image=imageFromCatalog(result.product);
-   if(result.status==='found'&&image){
+   if(result.status==='found'&&result.product){
+    // This catalog is an enrichment cache, never an instruction to overwrite
+    // a user's own product name, quantity, price, or photo choice.
     state.catalogLookups[code]=result;
-    // Local-only cache. Photos and URLs are not included in the cloud payload.
+    const product=result.product;
+    const known=state.catalog.find(x=>C.barcodeKey(x.barcode)===code);
+    if(!known&&product.name){
+     state.catalog.push({id:uid(),barcode:code,name:product.name.slice(0,120),
+      details:[product.brand,product.pack].filter(Boolean).join(' · ').slice(0,160),
+      category:C.category(product.name),imageUrl:image,
+      lastPriceCents:0,source:product.source,sourceUrl:product.sourceUrl,updatedAt:now()});
+    }else if(known&&!imageFromCatalog(known)&&image){
+     known.imageUrl=image;known.updatedAt=now();
+    }
+    // A new reference stays local. No fiscal or personal data is uploaded.
     save();
-    for(const row of document.querySelectorAll('[data-item-id]')){
+    if(image)for(const row of document.querySelectorAll('[data-item-id]')){
      const item=state.items.find(i=>i.id===row.dataset.itemId);
      if(!item||C.barcodeKey(item.barcode)!==code)continue;
      const el=row.querySelector('.item-icon');
@@ -1755,7 +1767,9 @@ function listProductPhoto(item){
   const catalog=state.catalog?.find(x=>C.barcodeKey(x.barcode)===barcode);
   const reference=references.find(x=>C.barcodeKey(x.barcode)===barcode);
   const image=imageFromCatalog(cached)||imageFromCatalog(catalog)||imageFromCatalog(reference);
-  if(!image&&C.validGTIN(barcode))schedulePhotoLookup(barcode);
+  const lastLookup=state.catalogLookups?.[barcode];
+  const staleLookup=lastLookup&&Number.isFinite(lastLookup.at)&&Date.now()-lastLookup.at>=Cat.CACHE_TTL_MS;
+  if((!image||staleLookup)&&C.validGTIN(barcode))schedulePhotoLookup(barcode);
   return image;
  }
  const title=C.normalize(item?.name||'');
