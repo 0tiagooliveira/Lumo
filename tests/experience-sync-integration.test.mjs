@@ -154,3 +154,24 @@ test('falha de salvamento impede registro prematuro de item recebido da nuvem',a
  assert.equal(restarted.state.items.length,1,'Item recovered on restart instead of being permanently skipped');
  restarted.stop();
 });
+
+test('falha ao salvar lista compartilhada não registra mapa remoto antes da hora',async()=>{
+ const owner='00000000-0000-4000-8000-000000000717';
+ const guest='00000000-0000-4000-8000-000000000718';
+ const listId='10000000-0000-4000-8000-000000000717';
+ const db=new FakeDB();
+ const a=setup(owner,db,[{id:listId,name:'Lista da família'}],[]);
+ await sleep(20);a.doc.get('lumo-cloud-activate').fire();await sleep(110);
+ a.doc.get('lumo-cloud-create-invite').fire();await sleep(25);
+ const invite=db.clipboard;a.stop();
+ const b=setup(guest,db,[],[],{saveCheck:state=>state.lists.length?Promise.reject(Error('IDB falhou ao salvar a lista')):Promise.resolve()});
+ await sleep(25);b.doc.get('lumo-invite-input').value=invite;b.doc.get('lumo-cloud-redeem').fire();await sleep(80);
+ assert.equal(b.state.lists.length,1,'Lista chega na memória');
+ const raw=accountStores.get(guest).get('lumo-experience-sync-'+guest);
+ assert.equal(Object.keys(JSON.parse(raw||'{}').lists||{}).length,0,'Lista não confirmada no mapeamento remoto');
+ b.stop();
+ const recovery=setup(guest,db,[],[]);
+ await sleep(85);
+ assert.equal(recovery.state.lists.length,1,'Lista recebida novamente após reiniciar');
+ recovery.stop();
+});
