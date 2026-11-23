@@ -67,6 +67,52 @@ async def main():
   assert await newer.count()==1, 'New EAN should resolve a matching catalog image'
   assert '7891910008353' in (await newer.get_attribute('src')), 'Must show 5kg packshot, not prior 1kg'
   print('Editing EAN refreshes the product packshot: PASS')
+  # A shared item arrives on a second phone with GTIN but no image. Mock only
+  # the public catalog edge; let the real browser code perform the HTTP lookup.
+  async def openfacts(route):
+   await route.fulfill(status=200,content_type='application/json',body=(
+    '{"code":"7891234567895","product":{"product_name_pt":"Café para teste",'
+    '"image_front_small_url":"https://images.openfoodfacts.org/images/products/789/123/456/7895/front_pt.400.jpg"}}'))
+  photo_calls=[]
+  async def tracked_openfacts(route):
+   photo_calls.append(route.request.url)
+   await openfacts(route)
+  await page.route('https://world.openfoodfacts.org/api/v3/product/7891234567895.json*',tracked_openfacts)
+  await page.route('https://images.openfoodfacts.org/**',lambda route:route.fulfill(
+   status=200,content_type='image/svg+xml',
+   body='<svg xmlns="http://www.w3.org/2000/svg" width="43" height="43"></svg>'))
+  await page.evaluate("""() => window.LumoLegacy.applyRemote(s => {
+   s.items.push({id:'shared-photo-check',listId:s.activeListId,barcode:'7891234567895',
+    name:'Café para teste',details:'',category:'Mercearia',
+    qty:1,unit:'un',unitPriceCents:0,status:'pending',createdAt:new Date().toISOString()});
+  })""")
+  shared=page.locator('[data-item-id="shared-photo-check"] img.item-photo')
+  await shared.wait_for(state='attached',timeout=9000)
+  assert 'images.openfoodfacts.org' in (await shared.get_attribute('src'))
+  assert len(photo_calls)==1,'One GTIN lookup must not repeat on subsequent renders'
+  await page.locator('[data-action="nav"][data-to="purchase"]').last.click()
+  await page.wait_for_timeout(200)
+  assert len(photo_calls)==1,'Photo lookup result must be reused from the local cache'
+  print('Second-device GTIN automatically receives trusted cached photo: PASS')
+
+  # A provider may return data for a different EAN; never show that packshot.
+  async def mismatched_openfacts(route):
+   await route.fulfill(status=200,content_type='application/json',body=(
+    '{"code":"7891234567895","product":{"product_name_pt":"Produto errado",'
+    '"image_front_small_url":"https://images.openfoodfacts.org/wrong.jpg"}}'))
+  await page.route('https://world.openfoodfacts.org/api/v3/product/7891234567888.json*',mismatched_openfacts)
+  for hostname in ['world.openbeautyfacts.org','world.openproductsfacts.org']:
+   await page.route(f'https://{hostname}/api/v3/product/7891234567888.json*',
+    lambda route:route.fulfill(status=404,body='{}'))
+  await page.evaluate("""() => window.LumoLegacy.applyRemote(s => {
+   s.items.push({id:'mismatch-photo-check',listId:s.activeListId,barcode:'7891234567888',
+    name:'Produto sem foto conferida',details:'',category:'Mercearia',
+    qty:1,unit:'un',unitPriceCents:0,status:'pending',createdAt:new Date().toISOString()});
+  })""")
+  await page.wait_for_timeout(700)
+  assert await page.locator('[data-item-id="mismatch-photo-check"] img.item-photo').count()==0, 'Mismatched EAN photo must never display'
+  print('Wrong-EAN photo rejected: PASS')
+
 
 
   await page.screenshot(path=str(Path(gettempdir())/'lumo_restored_list_390.png'),full_page=True)
