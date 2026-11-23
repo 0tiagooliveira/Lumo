@@ -204,3 +204,31 @@ test('resolver conflito remoto aguarda salvamento local e conserva conflito apó
  assert.equal(read().conflicts.length,0,'Conflict cleared only after durable local write');
  a.stop();
 });
+
+
+test('lista recém compartilhada preserva estados iniciais no segundo celular',async()=>{
+ const owner='00000000-0000-4000-8000-000000000720';
+ const guest='00000000-0000-4000-8000-000000000721';
+ const listId='10000000-0000-4000-8000-000000000720';
+ const db=new FakeDB();
+ const make=(suffix,name,status)=>({
+  id:'20000000-0000-4000-8000-000000000'+suffix,
+  listId,name,qty:1,unit:'un',unitPriceCents:100,barcode:'',status
+ });
+ const products=[
+  make('720','Arroz','pending'),
+  make('721','Café','bought'),
+  make('722','Sabão','later')
+ ];
+ const a=setup(owner,db,[{id:listId,name:'Compras'}],products);
+ await sleep(20);a.doc.get('lumo-cloud-activate').fire();await sleep(150);
+ assert.deepEqual(products.map(p=>db.items.get(p.id)?.state),['pending','in_cart','unavailable'],
+  'Original state must be sent on the initial cloud insert');
+ a.doc.get('lumo-cloud-create-invite').fire();await sleep(25);
+ const invite=db.clipboard;a.stop();
+ const b=setup(guest,db,[],[]);await sleep(25);
+ b.doc.get('lumo-invite-input').value=invite;b.doc.get('lumo-cloud-redeem').fire();await sleep(120);
+ assert.deepEqual(products.map(p=>b.state.items.find(x=>x.id===p.id)?.status),
+  ['pending','bought','later'],'Second phone must receive all initial states without waiting for a later edit');
+ b.stop();
+});
