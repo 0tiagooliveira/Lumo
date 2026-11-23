@@ -43,13 +43,22 @@ Foi executada uma transação `BEGIN ... ROLLBACK` no projeto Supabase `kqfsvzsg
 
 Foi criado `tests/supabase_rpc_rollback.sql`, que executa o mesmo contrato no `psql` com `-v lumo_test_approved=1` e reversão obrigatória. Use-o somente em banco local ou de homologação autorizado e jamais coloque a URL de conexão ou a senha no repositório. O job `database-contract` executa este teste em PostgreSQL efêmero no GitHub Actions, com a estrutura mínima de autenticação em `tests/postgres_bootstrap.sql`; **o bootstrap é somente para CI e não reproduz todo o Supabase Auth**.
 
+### Integração HTTP real em ambiente temporário
+
+O job `database-contract` do GitHub Actions também inicia **PostgREST 12.2** sobre um banco PostgreSQL 16 efêmero e aplica a migração candidata somente nesse banco descartável. Em `tests/rest_http_contract.test.mjs`, o Node envia solicitações HTTP verdadeiras para `/rpc/lumo_*`, `/shopping_lists` e `/list_items` com três JWTs sintéticos distintos. A chave HMAC é gerada aleatoriamente a cada execução, mascarada nos logs e não usa nenhuma credencial de produção. O teste é omitido na suíte Node local quando não existe o servidor de teste isolado.
+
+A execução comprovou o fluxo de criação, convites para editor e leitor, RLS de não-membro, escrita autorizada, recusa de escrita do leitor, idempotência, bloqueio de reutilização indevida de `operation_id`, exclusão e restauração de produtos, revogação de membro e impossibilidade de leitura ou replay após revogação. Verificar também a recusa de JWT adulterado e expirado.
+
+**Limitação:** o teste usa PostgREST com autenticação por JWT gerado **somente para CI**, não o Google OAuth/Supabase Auth real, nem redes celulares ou o HTTPS hospedado. Ele valida a API e as regras de acesso, mas não conclui a homologação dos dois dispositivos físicos.
+
 ### Separação dos níveis de evidência
 
-- **PostgreSQL real, SQL transacional e RLS:** testado com identidades sintéticas, sem gravação definitiva.
-- **PostgreSQL efêmero em CI:** executa baseline + migração nova + testes SQL sem segredos de produção.
-- **Google OAuth em dois dispositivos e REST real:** ainda não homologado.
+- **Supabase PostgreSQL real, SQL transacional e RLS:** testado com identidades sintéticas, sem gravação definitiva.
+- **PostgreSQL efêmero em CI:** baseline + migração candidata + testes SQL, sem segredos de produção.
+- **PostgREST HTTP real em CI:** contratos de RPC, RLS, perfis de acesso e JWTs sintéticos, executados sobre banco descartável.
+- **Google OAuth e HTTPS hospedado em dois dispositivos:** ainda não homologados.
 - **Câmera e PDF fiscal reais:** ainda não homologados.
-- **Aplicação da migração em produção:** não realizada.
+- **Aplicação da migração no Supabase remoto:** não realizada.
 
 ## Consultas de auditoria não destrutivas
 
