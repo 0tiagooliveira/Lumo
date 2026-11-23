@@ -1,6 +1,6 @@
 # Lumo — Publicação Firebase com fotos reais
 
-**Estado:** publicação **não concluída**; bloqueada por falta de credencial Firebase no GitHub Actions.
+**Estado:** publicação **concluída** no Firebase Hosting `uselumo`; verificação de domínio e SHA aprovado no GitHub Actions (tentativa 2, 23/11/2026 UTC).
 
 ## Candidato
 
@@ -20,16 +20,14 @@ A experiência v1.7 preserva mascotes, listas, scanner, notas, compras e histór
 
 - GitHub Actions (PR): https://github.com/0tiagooliveira/Lumo/actions/runs/45093360789 — Node, Chromium e PostgreSQL aprovados, incluindo correção da foto ao editar o EAN.
 - Supabase: migração `20261123010741_lumo_preserve_item_initial_state` **aplicada e verificada**, sem criação de listas/itens fictícios permanentes.
-- GitHub Actions (release): https://github.com/0tiagooliveira/Lumo/actions/runs/45093566387 — testes `npm run check` passaram, mas o deploy foi interrompido pela ausência do segredo `FIREBASE_SERVICE_ACCOUNT_LUMO_515518` ou `FIREBASE_SERVICE_ACCOUNT`. A publicação depende da credencial privada configurada pelo proprietário.
-- **Nenhuma nova versão foi publicada no Firebase nessa tentativa.**
+- GitHub Actions (release): https://github.com/0tiagooliveira/Lumo/actions/runs/45093566387 — tentativa 2 **aprovada**. O segredo ficou disponível, o Firebase Hosting publicou a versão e a verificação HTTP confirmou o SHA.
+- **O Lumo com fotos foi publicado em `https://uselumo.web.app/`**, SHA de deploy `bc8317de92cfbba560e62358ab6b11114d3e7959`.
 
-## Como finalizar com segurança
+## Configuração de publicação realizada
 
-1. Configurar uma credencial de serviço **com permissões mínimas de Firebase Hosting** para o projeto `lumo-515518`. O fluxo oficial `firebase init hosting:github` pode ajudar a criar e armazenar credenciais do GitHub Actions. Conferir as permissões do serviço com o administrador.
-2. Em https://github.com/0tiagooliveira/Lumo/settings/secrets/actions, criar o segredo de repositório `FIREBASE_SERVICE_ACCOUNT_LUMO_515518` (JSON da conta de serviço). **Nunca adicionar a credencial ao repositório, ao chat ou a um documento compartilhado.**
-3. Abrir https://github.com/0tiagooliveira/Lumo/actions/runs/45093566387 e usar **Re-run failed jobs** (depois do segredo configurado). O workflow só publica após os testes aprovarem; o target é verificado.
-4. O workflow grava `web/release.json` com o SHA da revisão e compara o arquivo servido por `https://uselumo.web.app/release.json` após o deploy; verificação falha se o site responder com outra revisão. Depois, conferir a interface completa e foto de produto conhecido em celular e tablet.
-5. Testar a autenticação Google real e a sincronização com duas contas, scanner e notas. A aprovação prévia em CI e API HTTP sintética não substitui esta homologação.
+A credencial privada foi adicionada pelo proprietário como segredo do GitHub Actions; seu conteúdo não foi exibido neste registro. Após a configuração, o job `firebase-live` foi executado novamente e passou nas etapas de testes, publicação e verificação da versão servida em HTTPS. A release usa o SHA `bc8317de92cfbba560e62358ab6b11114d3e7959`.
+
+**Próximos testes de homologação:** entrar com Google no celular e no tablet, conferir imagens reais por EAN, simular uma compra, ler um EAN pela câmera e testar compartilhamento da lista entre duas contas. A aprovação do deploy não certifica esses fluxos físicos. Caso o login apresente erro de redirecionamento, verificar os domínios e redirects autorizados no Supabase e no provedor Google.
 
 **Atenção:** o login pode falhar se os domínios/redirects não estiverem permitidos no projeto de autenticação Supabase e na configuração OAuth Google. Não declarar produção pronta sem validar esses caminhos.
 
@@ -37,4 +35,4 @@ A experiência v1.7 preserva mascotes, listas, scanner, notas, compras e histór
 
 A foto de um produto agora é invalidada quando o usuário altera o EAN ou muda a identificação de um item sem EAN; assim, uma embalagem anterior não fica associada ao produto novo. O teste Chromium cobre a troca do EAN de açúcar União 1 kg para 5 kg e verifica a fotografia correspondente. A revisão também aumenta a confiabilidade do deploy: grava um manifesto público com o SHA exato, impede cache da verificação e valida a versão servida pelo Firebase.
 
-**Situação neste registro:** a nova versão com fotos está pronta no repositório e validada em CI, mas **não está publicada** porque o GitHub Actions não recebeu uma credencial Firebase. Nenhuma chave deve ser enviada por mensagem ou salva em Markdown.
+**Situação final deste registro:** a versão com fotos foi **publicada** e a verificação de origem/commit no Firebase passou. Nenhuma chave deve ser enviada por mensagem ou salva em Markdown.
