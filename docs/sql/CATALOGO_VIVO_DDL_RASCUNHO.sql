@@ -32,8 +32,14 @@ GRANT ALL ON TABLE public.catalog_products TO service_role;
 CREATE POLICY catalog_only_verified_read ON public.catalog_products
  FOR SELECT TO anon, authenticated USING (status='verified');
 
+-- Separate private schema; do not expand privileges over the existing
+-- sensitive 'private' schema used by shopping lists and membership tokens.
+CREATE SCHEMA catalog_private;
+REVOKE ALL ON SCHEMA catalog_private FROM PUBLIC, anon, authenticated;
+GRANT USAGE ON SCHEMA catalog_private TO service_role;
+
 -- Private worker-only queue. Not exposed through PostgREST.
-CREATE TABLE private.catalog_refresh_jobs (
+CREATE TABLE catalog_private.catalog_refresh_jobs (
  gtin text PRIMARY KEY CHECK (gtin ~ '^[0-9]{8,14}$'),
  requested_at timestamptz NOT NULL DEFAULT now(),
  due_at timestamptz NOT NULL DEFAULT now(),
@@ -43,14 +49,14 @@ CREATE TABLE private.catalog_refresh_jobs (
  last_error_class text,
  updated_at timestamptz NOT NULL DEFAULT now()
 );
-CREATE INDEX catalog_refresh_due_idx ON private.catalog_refresh_jobs(due_at)
+CREATE INDEX catalog_refresh_due_idx ON catalog_private.catalog_refresh_jobs(due_at)
  WHERE state IN ('queued','retry');
-ALTER TABLE private.catalog_refresh_jobs ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE private.catalog_refresh_jobs FROM PUBLIC, anon, authenticated;
-GRANT ALL ON TABLE private.catalog_refresh_jobs TO service_role;
+ALTER TABLE catalog_private.catalog_refresh_jobs ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE catalog_private.catalog_refresh_jobs FROM PUBLIC, anon, authenticated;
+GRANT ALL ON TABLE catalog_private.catalog_refresh_jobs TO service_role;
 
 -- Candidate evidence must be reviewed before the public verified view accepts it.
-CREATE TABLE private.catalog_candidates (
+CREATE TABLE catalog_private.catalog_candidates (
  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
  gtin text NOT NULL CHECK (gtin ~ '^[0-9]{8,14}$'),
  source text NOT NULL,
@@ -62,11 +68,11 @@ CREATE TABLE private.catalog_candidates (
  review_status text NOT NULL DEFAULT 'queued'
  CHECK (review_status IN ('queued','accepted','rejected'))
 );
-CREATE INDEX catalog_candidates_gtin_idx ON private.catalog_candidates(gtin,checked_at DESC);
-ALTER TABLE private.catalog_candidates ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE private.catalog_candidates FROM PUBLIC, anon, authenticated;
-GRANT ALL ON TABLE private.catalog_candidates TO service_role;
+CREATE INDEX catalog_candidates_gtin_idx ON catalog_private.catalog_candidates(gtin,checked_at DESC);
+ALTER TABLE catalog_private.catalog_candidates ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE catalog_private.catalog_candidates FROM PUBLIC, anon, authenticated;
+GRANT ALL ON TABLE catalog_private.catalog_candidates TO service_role;
 
 COMMENT ON TABLE public.catalog_products IS 'Read-only verified GTIN catalog, no personal shopper data. Writes only by trusted service.';
-COMMENT ON TABLE private.catalog_refresh_jobs IS 'Internal rate-limited, retryable public-data verification queue.';
-COMMENT ON TABLE private.catalog_candidates IS 'Untrusted source candidates awaiting verification. Never exposed to browser.';
+COMMENT ON TABLE catalog_private.catalog_refresh_jobs IS 'Internal rate-limited, retryable public-data verification queue.';
+COMMENT ON TABLE catalog_private.catalog_candidates IS 'Untrusted source candidates awaiting verification. Never exposed to browser.';
