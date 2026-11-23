@@ -75,6 +75,7 @@ jobs:
         run: |
           set -euo pipefail
           key="$(openssl rand -hex 48)"
+          echo "::add-mask::$key"
           echo "LUMO_TEST_JWT_SECRET=$key" >> "$GITHUB_ENV"
           echo "LUMO_TEST_REST_URL=http://127.0.0.1:3005" >> "$GITHUB_ENV"
           echo "LUMO_TEST_DISPOSABLE_DB=yes" >> "$GITHUB_ENV"
