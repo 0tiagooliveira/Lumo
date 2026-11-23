@@ -30,3 +30,36 @@ jobs:
         run: python tests/experience_navigation_static.py
       - name: Verify Google login fallback in legacy cloud lab
         run: python tests/browser_smoke.py
+
+  database-contract:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci_only_disposable_database
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: ci_only_disposable_database
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client (ephemeral CI environment)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: Create isolated fake Supabase Auth roles
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/postgres_bootstrap.sql
+      - name: Apply baseline Lumo database schemas in disposable PostgreSQL
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20261122182007_lumo_beta_privada_foundation.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20261122192056_lumo_cloud_list_compat_and_tombstones.sql
+      - name: Execute real SQL/RLS regression with mandatory ROLLBACK
+        run: psql -X -v ON_ERROR_STOP=1 -v lumo_test_approved=1 -f tests/supabase_rpc_rollback.sql
