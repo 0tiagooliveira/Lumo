@@ -281,13 +281,17 @@ test('reaplicar edição após exclusão remota restaura nome, quantidade e esta
  window.dispatchEvent(new Event('lumo:local-changed'));
  await sleep(25);await b.sync.syncOnce();
  assert.ok(db.items.get(itemId)?.deleted_at,'Guest deleted the item in cloud');
- a.state.items[0].qty=5;
- a.state.items[0].name='Banana madura';
- a.state.items[0].status='bought';
- await a.sync.syncOnce();
+ // Restore the owner as the active simulated browser; each fake session uses
+ // global window/document/localStorage, just as the existing two-phone tests do.
+ const savedOwner=structuredClone(a.state);a.stop();b.stop();
+ savedOwner.items[0].qty=5;
+ savedOwner.items[0].name='Banana madura';
+ savedOwner.items[0].status='bought';
+ const a2=setup(owner,db,savedOwner.lists,savedOwner.items);
+ await sleep(80);
  const ownerState=JSON.parse(accountStores.get(owner).get('lumo-experience-sync-'+owner));
  assert.equal(ownerState.conflicts.length,1,'Owner gets conflict instead of silent deletion');
- a.doc.get('lumo-cloud-conflicts').handlers.click({target:{closest:()=>({
+ a2.doc.get('lumo-cloud-conflicts').handlers.click({target:{closest:()=>({
   dataset:{cloudChoice:'local',cloudIndex:'0'}
  })}});
  await sleep(90);
@@ -297,7 +301,7 @@ test('reaplicar edição após exclusão remota restaura nome, quantidade e esta
  assert.equal(restored.name,'Banana madura','Updated name retained');
  assert.equal(restored.state,'in_cart','Updated bought state retained');
  assert.equal(JSON.parse(accountStores.get(owner).get('lumo-experience-sync-'+owner)).conflicts.length,0);
- a.stop();b.stop();
+ a2.stop();
 });
 
 test('a revogação impede repetir o ACK de uma operação antes autorizada',async()=>{
