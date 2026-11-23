@@ -11,7 +11,7 @@
 \endif
 
 BEGIN;
-\ir ../supabase/migrations/20261123002500_lumo_preserve_item_initial_state.sql
+\ir ../supabase/migrations/20261123010741_lumo_preserve_item_initial_state.sql
 
 -- Fixed synthetic UUIDs; no real users, emails, passwords or fiscal data.
 INSERT INTO auth.users(id) VALUES
