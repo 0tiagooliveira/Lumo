@@ -326,3 +326,34 @@ test('a revogação impede repetir o ACK de uma operação antes autorizada',asy
   'Replaying the very same acknowledged operation must be denied after revocation');
  a.stop();b.stop();
 });
+
+
+test('perda de acesso preserva fila offline e evita nova escrita na lista revogada',async()=>{
+ const owner='00000000-0000-4000-8000-000000000741';
+ const guest='00000000-0000-4000-8000-000000000742';
+ const listId='10000000-0000-4000-8000-000000000741';
+ const itemId='20000000-0000-4000-8000-000000000741';
+ const db=new FakeDB();
+ const a=setup(owner,db,[{id:listId,name:'Lista da casa'}],
+  [{id:itemId,listId,name:'Arroz',qty:1,unit:'un',unitPriceCents:500,status:'pending',barcode:''}]);
+ await sleep(20);a.doc.get('lumo-cloud-activate').fire();await sleep(130);
+ a.doc.get('lumo-cloud-create-invite').fire();await sleep(25);
+ const b=setup(guest,db,[],[]);await sleep(25);
+ b.doc.get('lumo-invite-input').value=db.clipboard;b.doc.get('lumo-cloud-redeem').fire();await sleep(105);
+ assert.equal(b.state.items.length,1,'Guest downloaded shared item');
+ navigator.onLine=false;
+ b.state.items.splice(0,1);
+ window.dispatchEvent(new Event('lumo:local-changed'));
+ await sleep(25);
+ const read=()=>JSON.parse(accountStores.get(guest).get('lumo-experience-sync-'+guest));
+ assert.equal(read().pending.length,1,'Local deletion saved as an unacknowledged operation');
+ db.members.delete(listId+':'+guest);
+ navigator.onLine=true;
+ await b.sync.syncOnce();
+ assert.match(b.doc.get('lumo-cloud-status').textContent,/sem acesso à nuvem/i);
+ assert.equal(read().pending.length,1,'Unsent operation preserved for manual review');
+ assert.equal(read().lists[listId],listId,'Cloud mapping remains visible for investigation');
+ assert.equal(db.items.get(itemId).deleted_at,null,'No unauthorized delete was attempted');
+ assert.ok(b.state.lists.some(x=>x.id===listId),'Previously downloaded local list preserved');
+ b.stop();a.stop();
+});
