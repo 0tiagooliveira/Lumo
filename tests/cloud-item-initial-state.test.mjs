@@ -16,6 +16,13 @@ test('SQL insert records initial state and validates allowed states',()=>{
  assert.match(addPart,/values\(p_item,p_list,n,q,u,pr,g,s,a\)/);
  assert.match(migration,/security definer set search_path=''/i,'Existing explicit search_path preserved');
  assert.match(migration,/if not private\.is_editor\(p_list\)/,'Membership authorization preserved');
+ assert.ok(migration.indexOf("if not private.is_editor(p_list)") <
+  migration.indexOf("select * into e from private.operation_events"),
+  'Authorization must precede ACK replay even for an already used operation ID');
+ assert.match(migration,/deleted_at=case when p_action='restore' then null else i\.deleted_at end/,
+  'Restore must update fields and clear tombstone atomically');
+ assert.doesNotMatch(migration,/elsif p_action='restore' then\s+update public\.list_items set deleted_at=null/,
+  'Old restore path discarding local fields must not return');
 });
 
 test('first-time local states roundtrip through shared cloud contract',()=>{
