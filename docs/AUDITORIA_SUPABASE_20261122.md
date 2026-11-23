@@ -19,13 +19,13 @@
 
 A implementação da RPC `lumo_apply_item`, no ramo `p_action='add'`, lia nome, quantidade, unidade, preço e GTIN, mas não inseria o campo `state` enviado pelo frontend. A tabela aplicava `pending` por padrão, inclusive quando o aparelho já marcava o item como comprado ou indisponível.
 
-**Correção proposta:** `supabase/migrations/20261123002500_lumo_preserve_item_initial_state.sql`, que preserva o estado enviado ao criar o item e rejeita estados fora de `pending`, `in_cart`, `unavailable`. A função mantém os mesmos argumentos, autorização, `SECURITY DEFINER` e busca qualificada, sem alteração retroativa de linhas.
+**Correção proposta:** `supabase/migrations/20261123010741_lumo_preserve_item_initial_state.sql`, que preserva o estado enviado ao criar o item e rejeita estados fora de `pending`, `in_cart`, `unavailable`. A função mantém os mesmos argumentos, autorização, `SECURITY DEFINER` e busca qualificada, sem alteração retroativa de linhas.
 
-**Estado da implantação:** somente proposta no GitHub. Não aplicar automaticamente no banco remoto até a revisão da migração e teste E2E. O código frontend publicado ainda não foi homologado com esta migração.
+**Estado da implantação:** aplicada no Supabase remoto na versão 20261123010741. O frontend ainda depende de publicação e homologação em dispositivos.
 
 ## Histórico de migrações reconciliado no PR
 
-As três migrações remotas possuem versões `20261122182007`, `20261122182029` e `20261122192056`. O SQL armazenado no histórico remoto foi comparado com os arquivos do GitHub: a primeira migração coincide literalmente; as outras duas coincidem após remover apenas comentários e normalizar espaços. Os arquivos históricos foram **renomeados neste PR** para reproduzir os números e nomes registrados no Supabase, sem executar DDL no banco. A migração nova `20261123002500_lumo_preserve_item_initial_state.sql` permanece proposta, não aplicada.
+As três migrações remotas possuem versões `20261122182007`, `20261122182029` e `20261122192056`. O SQL armazenado no histórico remoto foi comparado com os arquivos do GitHub: a primeira migração coincide literalmente; as outras duas coincidem após remover apenas comentários e normalizar espaços. Os arquivos históricos foram **renomeados neste PR** para reproduzir os números e nomes registrados no Supabase, sem executar DDL no banco. A migração nova `20261123010741_lumo_preserve_item_initial_state.sql` foi aplicada ao Supabase remoto na versão 20261123010741.
 
 Antes de qualquer `supabase db push`, verificar `supabase migration list` no ambiente autenticado correto e conferir que somente a migração nova está pendente. O ajuste do histórico no GitHub não é prova de que a CLI local está configurada ou autorizada a escrever no projeto remoto.
 
@@ -58,7 +58,7 @@ A execução comprovou o fluxo de criação, convites para editor e leitor, RLS 
 - **PostgREST HTTP real em CI:** contratos de RPC, RLS, perfis de acesso e JWTs sintéticos, executados sobre banco descartável.
 - **Google OAuth e HTTPS hospedado em dois dispositivos:** ainda não homologados.
 - **Câmera e PDF fiscal reais:** ainda não homologados.
-- **Aplicação da migração no Supabase remoto:** não realizada.
+- **Aplicação da migração no Supabase remoto:** concluída em 20261123010741; versão e contrato verificados no banco.
 
 ## Consultas de auditoria não destrutivas
 
