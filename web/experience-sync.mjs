@@ -249,15 +249,36 @@ export function attachCloudSync({legacy,account,session,status,panel}){
     return;
    }
   }else if(choice==='local'){
-   // A new operation ID is required after the user explicitly approves retrying
-   // against the current server revision; never mutate or reuse the rejected op.
-   const local=localState().items.find(x=>x.id===localItemId&&x.listId===localListId);
-   if(!local){message('Item não encontrado neste aparelho.');return;}
-   saveShadow(remoteListId,localItemId,server);
-   cloud.conflicts.splice(index,1);persist();
-   try{createPending(localListId,localItemId,server.deleted_at?'restore':'edit',server.deleted_at?{}:itemPayload(local),server.revision)}
-   catch(err){message(err.message);return}
-   report();void syncOnce();return;
+   // The user explicitly chose to reapply a local edit. Commit the shadow,
+   // removal of the old conflict and the replacement operation in ONE durable
+   // localStorage write. A crash or quota error must leave the original
+   // conflict available for retry, never a half-acknowledged edit.
+   let local,payload,remoteItemId;
+   try{
+    await legacy.waitForLocalSave?.();
+    local=localState().items.find(x=>x.id===localItemId&&x.listId===localListId);
+    if(!local)throw Error('Item não encontrado neste aparelho.');
+    payload=server.deleted_at?{}:itemPayload(local);
+    remoteItemId=cloud.items[localItemId]||(UUID.test(localItemId)?localItemId:crypto.randomUUID());
+   }catch(err){message('Sua edição continua em conflito: '+(err?.message||''));return;}
+   if(cloud.pending.some(p=>p.localItemId===localItemId&&p.remoteListId===remoteListId)){
+    message('Já existe uma operação pendente para este item.');return;
+   }
+   const next={...cloud,items:{...cloud.items},shadow:{...cloud.shadow},
+    conflicts:cloud.conflicts.filter((_,i)=>i!==index),pending:[...cloud.pending]};
+   next.items[localItemId]=remoteItemId;
+   next.shadow[keyFor(remoteListId,localItemId)]={
+    revision:Number(server.revision),signature:cloudSignature(server),deleted:!!server.deleted_at
+   };
+   next.pending.push({operation_id:crypto.randomUUID(),localListId,remoteListId,localItemId,
+    remoteItemId,action:server.deleted_at?'restore':'edit',payload,
+    expected_revision:Number(server.revision),createdAt:Date.now()});
+   try{localStorage.setItem(storageKey,JSON.stringify(next));}
+   catch(err){
+    message('Sem espaço para guardar a tentativa. O conflito foi preservado; exporte um backup e libere armazenamento. '+(err?.message||''));
+    return;
+   }
+   cloud=next;report();void syncOnce();return;
   }else return;
   cloud.conflicts.splice(index,1);persist();report();message(choice==='remote'?'Versão da nuvem aplicada somente neste item.':'Sua edição foi enviada para revisão.');
  }
