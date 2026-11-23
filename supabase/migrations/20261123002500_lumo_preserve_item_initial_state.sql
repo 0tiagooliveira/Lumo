@@ -1,7 +1,8 @@
 -- Lumo: fix initial item status on first cloud insert.
 -- Replaces the existing RPC without altering signatures, grants, RLS or historical rows.
 -- 'pending' is the default only when the client leaves state unset/null.
--- This also rejects any unexpected state before inserting the row.
+-- This rejects invalid states, rejects replay after member revocation and preserves
+-- edited fields during explicit restore of a deleted item.
 -- Apply only after reviewing and testing the release candidate.
 
 create or replace function public.lumo_apply_item(p_list uuid,p_op uuid,p_action text,p_item uuid,
@@ -12,12 +13,7 @@ declare a uuid:=auth.uid();l public.shopping_lists%rowtype;i public.list_items%r
 begin
  if a is null then raise exception 'AUTH_REQUIRED' using errcode='28000';end if;
  if p_op is null or p_item is null or p_action not in('add','edit','delete','restore','increment') or p_payload is null or jsonb_typeof(p_payload)<>'object' then raise exception 'INVALID_OPERATION';end if;
- select * into e from private.operation_events where id=p_op;
- if found then
-  if e.actor_id<>a or e.list_id<>p_list or e.item_id<>p_item or e.action<>p_action or e.payload is distinct from p_payload or e.expected_revision is distinct from p_expected then
-   raise exception 'OP_ID_REUSED' using errcode='23505';end if;
-  return e.result;
- end if;
+ -- Authorize before replay: revocation must also invalidate old operation ACKs.
  if not private.is_editor(p_list) then raise exception 'LIST_FORBIDDEN' using errcode='42501';end if;
  select * into l from public.shopping_lists where id=p_list and status='active' and deleted_at is null for update;
  if not found then raise exception 'LIST_NOT_ACTIVE';end if;
@@ -47,8 +43,6 @@ begin
   end if;
   if p_action='delete' then
    update public.list_items set deleted_at=now(),revision=revision+1,updated_at=now() where id=p_item returning * into i;
-  elsif p_action='restore' then
-   update public.list_items set deleted_at=null,revision=revision+1,updated_at=now() where id=p_item returning * into i;
   elsif p_action='increment' then
    q:=(p_payload->>'delta')::numeric;
    if q<=0 or q>1000 or scale(q)>3 then raise exception 'INVALID_DELTA';end if;
@@ -63,7 +57,11 @@ begin
    if length(n) not between 1 and 160 or q<=0 or q>=10000 or scale(q)>3 or u not in('un','kg','g','l','ml')
     or (u='un' and q<>trunc(q)) or s not in('pending','in_cart','unavailable') or pr<0 or pr>1000000000 then
     raise exception 'INVALID_EDIT';end if;
-   update public.list_items set name=n,quantity=q,unit=u,unit_price_minor=pr,gtin=g,state=s,revision=revision+1,updated_at=now() where id=p_item returning * into i;
+   -- A restore must also carry the user's retained edits; reviving the old row
+   -- without payload would silently discard changes made while it was deleted.
+   update public.list_items set name=n,quantity=q,unit=u,unit_price_minor=pr,gtin=g,state=s,
+    deleted_at=case when p_action='restore' then null else i.deleted_at end,
+    revision=revision+1,updated_at=now() where id=p_item returning * into i;
   end if;
  end if;
  update public.shopping_lists set revision=newrev,updated_at=now() where id=p_list;
