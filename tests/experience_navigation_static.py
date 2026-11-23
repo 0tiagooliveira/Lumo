@@ -30,6 +30,31 @@ async def main():
   assert count==1,f'Item was not created: {count}'
   assert 'leite' in (await page.locator('body').inner_text()).lower()
   print('onboarding, 5 navigation tabs, quick add 2 leite: PASS')
+
+  # Product photo is resolved by the same GTIN in the embedded catalog; the
+  # image is mocked at the network edge, not invented or downloaded by CI.
+  await page.route('https://edge.osuper.com.br/**',lambda r:r.fulfill(
+   status=200,content_type='image/svg+xml',
+   body='<svg xmlns="http://www.w3.org/2000/svg" width="43" height="43"><rect width="43" height="43" fill="white"/></svg>'))
+  await page.evaluate("""() => window.LumoLegacy.applyRemote(s => {
+   s.items.push({id:'photo-ean-check',listId:s.activeListId,barcode:'7891910000197',
+    name:'Açúcar Refinado União 1kg',imageUrl:'',details:'',category:'Mercearia',
+    qty:1,unit:'un',unitPriceCents:339,status:'pending',createdAt:new Date().toISOString()});
+   s.items.push({id:'photo-fallback-check',listId:s.activeListId,barcode:'',
+    name:'Produto sem foto correspondente',imageUrl:'https://untrusted.invalid/malicious.jpg',
+    details:'',category:'Mercearia',qty:1,unit:'un',unitPriceCents:0,status:'pending',
+    createdAt:new Date().toISOString()});
+  })""")
+  await page.locator('[data-action="nav"][data-to="lists"]').last.click()
+  await page.locator('[data-action="open-list"]').first.click()
+  photo=page.locator('[data-item-id="photo-ean-check"] img.item-photo')
+  assert await photo.count()==1,'Known GTIN must display its real catalog photo'
+  assert 'edge.osuper.com.br' in (await photo.get_attribute('src'))
+  assert await page.locator('[data-item-id="photo-fallback-check"] img').count()==0, 'Never display an untrusted image'
+  await page.locator('[data-action="nav"][data-to="purchase"]').last.click()
+  assert await page.locator('[data-item-id="photo-ean-check"] img.item-photo').count()==1, 'Shopping mode must also show photo'
+  print('Trusted EAN image in list/purchase and safe fallback: PASS')
+
   await page.screenshot(path=str(Path(gettempdir())/'lumo_restored_list_390.png'),full_page=True)
   await page.locator('[data-action="nav"][data-to="purchase"]').last.click()
   await page.wait_for_timeout(150)
