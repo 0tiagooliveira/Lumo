@@ -71,13 +71,30 @@ jobs:
             https://uselumo.web.app/ -o "$RUNNER_TEMP/lumo-published.html"
           grep -q 'lumo-identity-gate' "$RUNNER_TEMP/lumo-published.html"
           grep -q 'listProductArtwork' "$RUNNER_TEMP/lumo-published.html"
-          curl --fail --location --silent --show-error --retry 3 --retry-delay 3 \
-            "https://uselumo.web.app/release.json?sha=${GITHUB_SHA}" -o "$RUNNER_TEMP/lumo-release.json"
-          node - <<'NODE'
+          # Hosting/CDN rollout can briefly serve the preceding release after
+          # successful upload. Never accept a stale SHA, but retry with cache busting.
+          matched=0
+          for attempt in $(seq 1 12); do
+            curl --fail --location --silent --show-error --retry 2 --retry-delay 2 \
+              -H 'Cache-Control: no-cache' \
+              "https://uselumo.web.app/release.json?sha=${GITHUB_SHA}&attempt=${attempt}" \
+              -o "$RUNNER_TEMP/lumo-release.json" || true
+            if node - <<'NODE'
           const fs=require('node:fs');
           const r=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/lumo-release.json','utf8'));
-          if(r.commit!==process.env.GITHUB_SHA||r.site!=='uselumo'||r.project!=='lumo-515518')throw Error('Firebase live não corresponde ao SHA publicado');
+          if(r.commit!==process.env.GITHUB_SHA||r.site!=='uselumo'||r.project!=='lumo-515518')process.exit(1);
           console.log('Firebase live confirmado no SHA '+r.commit);
           NODE
+            then
+              matched=1
+              break
+            fi
+            echo "Aguardando consistência do Firebase Hosting, tentativa ${attempt}/12"
+            sleep 5
+          done
+          if [ "$matched" != "1" ]; then
+            echo '::error::Firebase Hosting não confirmou o SHA após a janela de verificação; publicação requer revisão.'
+            exit 1
+          fi
       - name: Validate published Google gate on mobile and tablet Chromium
         run: python tests/live_public_smoke.py
