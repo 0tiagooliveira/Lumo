@@ -61,7 +61,7 @@ function fakeDom(){const elements=new Map();const get=id=>elements.get(id)||(ele
 const accountStores=new Map();
 function setup(user,db,list=[],items=[],options={}){
  const doc=fakeDom();globalThis.document=doc;globalThis.window=new EventTarget();globalThis.location={origin:'https://lumo-preview.example',pathname:'/'};
- const store=accountStores.get(user)||new Map();accountStores.set(user,store);globalThis.localStorage={getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)};
+ const store=accountStores.get(user)||new Map();accountStores.set(user,store);globalThis.localStorage={getItem:k=>store.get(k)||null,setItem:(k,v)=>{if(options.rejectCloudWrite?.(k,v))throw Error('armazenamento indisponível');store.set(k,v)},removeItem:k=>store.delete(k)};
  globalThis.sessionStorage={getItem:k=>store.get('ss:'+k)||null,setItem:(k,v)=>store.set('ss:'+k,v),removeItem:k=>store.delete('ss:'+k)};
  Object.defineProperty(globalThis,'navigator',{configurable:true,value:{onLine:true,clipboard:{writeText:async txt=>{db.clipboard=txt}}}});
  const state={lists:structuredClone(list),items:structuredClone(items)};
@@ -231,4 +231,33 @@ test('lista recém compartilhada preserva estados iniciais no segundo celular',a
  assert.deepEqual(products.map(p=>b.state.items.find(x=>x.id===p.id)?.status),
   ['pending','bought','later'],'Second phone must receive all initial states without waiting for a later edit');
  b.stop();
+});
+
+
+test('reaplicar edição local é atômico mesmo quando localStorage recusa escrita',async()=>{
+ const user='00000000-0000-4000-8000-000000000723';
+ const listId='10000000-0000-4000-8000-000000000723';
+ const itemId='20000000-0000-4000-8000-000000000723';
+ const db=new FakeDB();let rejectWrite=false;
+ const a=setup(user,db,[{id:listId,name:'Mercado'}],
+  [{id:itemId,listId,name:'Macarrão',qty:1,unit:'un',unitPriceCents:420,status:'pending',barcode:''}],
+  {rejectCloudWrite:()=>rejectWrite});
+ await sleep(20);a.doc.get('lumo-cloud-activate').fire();await sleep(130);
+ const key='lumo-experience-sync-'+user,shadowKey=listId+':'+itemId;
+ const read=()=>JSON.parse(accountStores.get(user).get(key));
+ assert.equal(read().shadow[shadowKey].revision,1);
+ db.items.set(itemId,{...db.items.get(itemId),quantity:2,revision:2,updated_at:new Date().toISOString()});
+ a.state.items[0].qty=3;await a.sync.syncOnce();
+ assert.equal(read().conflicts.length,1,'Concurrent edit is reviewable');
+ const chooseLocal=()=>a.doc.get('lumo-cloud-conflicts').handlers.click({
+  target:{closest:()=>({dataset:{cloudChoice:'local',cloudIndex:'0'}})}
+ });
+ rejectWrite=true;chooseLocal();await sleep(25);
+ assert.equal(read().conflicts.length,1,'Persisted conflict survives failed retry');
+ assert.equal(read().shadow[shadowKey].revision,1,'Stored shadow is not advanced prematurely');
+ assert.equal(read().pending.length,0,'No unpersisted operation is considered queued');
+ rejectWrite=false;chooseLocal();await sleep(65);
+ assert.equal(db.items.get(itemId).quantity,3,'Approved local edit reaches server after retry');
+ assert.equal(read().conflicts.length,0,'Persisted conflict removed only after operation is saved');
+ a.stop();
 });
