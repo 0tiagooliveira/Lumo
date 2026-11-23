@@ -119,6 +119,9 @@ export function attachCloudSync({legacy,account,session,status,panel}){
     cloud.titles[row.id]={title:row.title,revision:row.revision};
    }else if(!cloud.conflicts.some(x=>x.localListId===lid&&x.type==='list_title'))cloud.conflicts.push({type:'list_title',localListId:lid,error:'Nome alterado nos dois celulares. Revise qual nome manter.'});
   }
+  // Nunca grave o mapa de listas antes de confirmar que a lista recebida
+  // foi salva neste aparelho; uma falha de IndexedDB não pode torná-la invisível.
+  await legacy.waitForLocalSave?.();
   persist();
  }
  async function reconcileList(localListId,remoteListId){
