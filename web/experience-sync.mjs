@@ -155,14 +155,9 @@ export function attachCloudSync({legacy,account,session,status,panel}){
     syncUpdates.push({localId:local.id,row:server});syncShadows.push({localId:local.id,row:server});
    }
   }
-  // A deletion is an operation rather than silently disappearing from another device.
-  for(const [key,shadow] of Object.entries(cloud.shadow)){
-   if(!key.startsWith(`${remoteListId}:`)||shadow.deleted)continue;
-   const localId=key.slice(remoteListId.length+1);
-   if(locals.some(x=>x.id===localId))continue;
-   if(cloud.pending.some(x=>x.localItemId===localId&&x.remoteListId===remoteListId)||cloud.conflicts.some(x=>x.localItemId===localId&&x.remoteListId===remoteListId))continue;
-   createPending(localListId,localId,'delete',{},shadow.revision);
-  }
+  // Não deduza uma exclusão de um item ausente após reiniciar: isso também pode
+  // significar armazenamento local indisponível. Só eventos locais confirmados
+  // (onLocalChange após persistência) criam operações de exclusão na nuvem.
   for(const server of remote){
    if(server.deleted_at)continue;
    const local=localByRemote.get(server.id);
@@ -264,7 +259,31 @@ export function attachCloudSync({legacy,account,session,status,panel}){
    report();
   }catch(err){message(`Não foi possível aceitar o convite: ${err.message}`)}
  }
- function onLocalChange(){if(debounce)clearTimeout(debounce);debounce=setTimeout(()=>{void syncOnce()},750);}
+ function queueExplicitLocalDeletions(){
+  const state=localState(),listIds=new Set(state.lists.map(l=>l.id));
+  for(const [localListId,remoteListId] of Object.entries(cloud.lists)){
+   if(!listIds.has(localListId))continue;
+   const present=new Set(state.items.filter(i=>i.listId===localListId).map(i=>i.id));
+   for(const [key,shadow] of Object.entries(cloud.shadow)){
+    if(!key.startsWith(`${remoteListId}:`)||shadow.deleted)continue;
+    const localItemId=key.slice(remoteListId.length+1);
+    if(present.has(localItemId))continue;
+    if(cloud.pending.some(op=>op.localItemId===localItemId&&op.remoteListId===remoteListId))continue;
+    if(cloud.conflicts.some(op=>op.localItemId===localItemId&&op.remoteListId===remoteListId))continue;
+    createPending(localListId,localItemId,'delete',{},shadow.revision);
+   }
+  }
+ }
+ function onLocalChange(){
+  if(debounce)clearTimeout(debounce);
+  // O evento ocorre ao alterar a UI; as exclusões só podem ser enviadas
+  // depois de IndexedDB/localStorage confirmar a gravação da alteração.
+  void Promise.resolve(legacy.waitForLocalSave?.()).then(()=>{
+   if(stopped)return;
+   queueExplicitLocalDeletions();
+   debounce=setTimeout(()=>{void syncOnce()},750);
+  }).catch(err=>message('Exclusão não enviada: falha ao salvar neste aparelho. '+(err?.message||'')));
+ }
  function start(){
   $('lumo-cloud-activate').addEventListener('click',()=>{void activateCurrent()});
   $('lumo-cloud-create-invite').addEventListener('click',()=>{void createInvite()});
