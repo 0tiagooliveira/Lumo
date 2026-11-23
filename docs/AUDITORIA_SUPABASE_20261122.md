@@ -19,7 +19,7 @@
 
 A implementação da RPC `lumo_apply_item`, no ramo `p_action='add'`, lia nome, quantidade, unidade, preço e GTIN, mas não inseria o campo `state` enviado pelo frontend. A tabela aplicava `pending` por padrão, inclusive quando o aparelho já marcava o item como comprado ou indisponível.
 
-**Correção proposta:** `supabase/migrations/20261122_lumo_preserve_item_initial_state.sql`, que preserva o estado enviado ao criar o item e rejeita estados fora de `pending`, `in_cart`, `unavailable`. A função mantém os mesmos argumentos, autorização, `SECURITY DEFINER` e busca qualificada, sem alteração retroativa de linhas.
+**Correção proposta:** `supabase/migrations/20261123002500_lumo_preserve_item_initial_state.sql`, que preserva o estado enviado ao criar o item e rejeita estados fora de `pending`, `in_cart`, `unavailable`. A função mantém os mesmos argumentos, autorização, `SECURITY DEFINER` e busca qualificada, sem alteração retroativa de linhas.
 
 **Estado da implantação:** somente proposta no GitHub. Não aplicar automaticamente no banco remoto até a revisão da migração e teste E2E. O código frontend publicado ainda não foi homologado com esta migração.
 
