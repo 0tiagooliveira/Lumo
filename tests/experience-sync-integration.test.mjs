@@ -59,13 +59,13 @@ class FakeDB{
 }
 function fakeDom(){const elements=new Map();const get=id=>elements.get(id)||(elements.set(id,new El()),elements.get(id));return {get,getElementById:get,createElement:()=>new El(),addEventListener(){}}}
 const accountStores=new Map();
-function setup(user,db,list=[],items=[]){
+function setup(user,db,list=[],items=[],options={}){
  const doc=fakeDom();globalThis.document=doc;globalThis.window=new EventTarget();globalThis.location={origin:'https://lumo-preview.example',pathname:'/'};
  const store=accountStores.get(user)||new Map();accountStores.set(user,store);globalThis.localStorage={getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)};
  globalThis.sessionStorage={getItem:k=>store.get('ss:'+k)||null,setItem:(k,v)=>store.set('ss:'+k,v),removeItem:k=>store.delete('ss:'+k)};
  Object.defineProperty(globalThis,'navigator',{configurable:true,value:{onLine:true,clipboard:{writeText:async txt=>{db.clipboard=txt}}}});
  const state={lists:structuredClone(list),items:structuredClone(items)};
- const legacy={getState:()=>state,activeListId:()=>state.lists[0]?.id,waitForLocalSave:()=>Promise.resolve(),applyRemote:cb=>cb(state),shareText:()=>{}};
+ const legacy={getState:()=>state,activeListId:()=>state.lists[0]?.id,waitForLocalSave:()=>options.saveCheck?options.saveCheck(state):Promise.resolve(),applyRemote:cb=>cb(state),shareText:()=>{}};
  const session={rpc:(name,p)=>db.rpc(user,name,p),request:path=>db.get(user,path)};
  const status=doc.get('lumo-cloud-status'),panel=doc.get('lumo-cloud-panel');
  const sync=attachCloudSync({legacy,account:user,session,status,panel});sync.start();
@@ -102,4 +102,55 @@ test('dois celulares: compartilhar, propagar atualização, offline e conflito s
  const children=b2.doc.get('lumo-cloud-conflicts').children;
  assert.ok(children.length>0,'Conflict shown to user, not silently discarded');
  b2.stop();
+});
+
+test('exclusão intencional sincroniza após alteração local salva',async()=>{
+ const user='00000000-0000-4000-8000-000000000713';
+ const listId='10000000-0000-4000-8000-000000000713';
+ const itemId='20000000-0000-4000-8000-000000000713';
+ const db=new FakeDB();
+ const a=setup(user,db,[{id:listId,name:'Mercado'}],[{id:itemId,listId,name:'Arroz',qty:1,unit:'un',unitPriceCents:100,status:'pending',barcode:''}]);
+ await sleep(20);a.doc.get('lumo-cloud-activate').fire();await sleep(130);
+ assert.ok(db.items.get(itemId)&&!db.items.get(itemId).deleted_at);
+ a.state.items.splice(0,1);
+ globalThis.window.dispatchEvent(new Event('lumo:local-changed'));
+ await sleep(25);await a.sync.syncOnce();
+ assert.ok(db.items.get(itemId).deleted_at,'Deletion was sent only after an explicit local change');
+ a.stop();
+});
+test('reinício com item local ausente não exclui automaticamente o item em nuvem',async()=>{
+ const user='00000000-0000-4000-8000-000000000714';
+ const listId='10000000-0000-4000-8000-000000000714';
+ const itemId='20000000-0000-4000-8000-000000000714';
+ const list={id:listId,name:'Compras'};
+ const product={id:itemId,listId,name:'Leite',qty:2,unit:'un',unitPriceCents:600,status:'pending',barcode:''};
+ const db=new FakeDB();
+ const a=setup(user,db,[list],[product]);
+ await sleep(20);a.doc.get('lumo-cloud-activate').fire();await sleep(130);a.stop();
+ const reboot=setup(user,db,[list],[]);
+ await sleep(70);
+ assert.equal(db.items.get(itemId).deleted_at,null,'A missing local database is not a delete request');
+ reboot.stop();
+});
+test('falha de salvamento impede registro prematuro de item recebido da nuvem',async()=>{
+ const owner='00000000-0000-4000-8000-000000000715';
+ const guest='00000000-0000-4000-8000-000000000716';
+ const listId='10000000-0000-4000-8000-000000000715';
+ const itemId='20000000-0000-4000-8000-000000000715';
+ const db=new FakeDB();
+ const a=setup(owner,db,[{id:listId,name:'Feira'}],[{id:itemId,listId,name:'Banana',qty:3,unit:'un',unitPriceCents:230,status:'pending',barcode:''}]);
+ await sleep(20);a.doc.get('lumo-cloud-activate').fire();await sleep(130);
+ a.doc.get('lumo-cloud-create-invite').fire();await sleep(25);
+ const invite=db.clipboard;a.stop();
+ const b=setup(guest,db,[],[],{saveCheck:state=>state.items.length?Promise.reject(new Error('IndexedDB indisponível')):Promise.resolve()});
+ await sleep(20);b.doc.get('lumo-invite-input').value=invite;b.doc.get('lumo-cloud-redeem').fire();await sleep(90);
+ assert.equal(b.state.items.length,1,'Item exists only in memory');
+ const cloudState=JSON.parse(accountStores.get(guest).get('lumo-experience-sync-'+guest));
+ assert.equal(Object.keys(cloudState.shadow).length,0,'No server ACK until local database save succeeds');
+ const previouslySeenList=structuredClone(b.state.lists);
+ b.stop();
+ const restarted=setup(guest,db,previouslySeenList,[]);
+ await sleep(90);
+ assert.equal(restarted.state.items.length,1,'Item recovered on restart instead of being permanently skipped');
+ restarted.stop();
 });
