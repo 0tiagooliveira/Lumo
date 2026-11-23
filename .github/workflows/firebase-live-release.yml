@@ -3,7 +3,7 @@ name: Publicar Lumo no Firebase Hosting — release controlada
 on:
   push:
     branches: ['release/uselumo-photos-20261123']
-    paths: ['firebase.json', 'web/**']
+    paths: ['firebase.json', 'web/**', 'tests/live_public_smoke.py', 'tests/experience_navigation_static.py']
   workflow_dispatch:
 
 permissions:
