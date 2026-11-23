@@ -152,7 +152,7 @@ export function attachCloudSync({legacy,account,session,status,panel}){
      if(signature===cloudSignature(server)){saveShadow(remoteListId,local.id,server);continue;}
      cloud.conflicts.push({localListId,remoteListId,localItemId:local.id,server,error:'Edição simultânea; alterações locais preservadas.'});persist();continue;
     }
-    if(shadow.deleted){createPending(localListId,local.id,'restore',{},shadow.revision);continue;}
+    if(shadow.deleted){createPending(localListId,local.id,'restore',itemPayload(local),shadow.revision);continue;}
     createPending(localListId,local.id,'edit',itemPayload(local),shadow.revision);
    }else if(server&&Number(server.revision)!==Number(shadow.revision)){
     syncUpdates.push({localId:local.id,row:server});syncShadows.push({localId:local.id,row:server});
@@ -258,7 +258,7 @@ export function attachCloudSync({legacy,account,session,status,panel}){
     await legacy.waitForLocalSave?.();
     local=localState().items.find(x=>x.id===localItemId&&x.listId===localListId);
     if(!local)throw Error('Item não encontrado neste aparelho.');
-    payload=server.deleted_at?{}:itemPayload(local);
+    payload=itemPayload(local);
     remoteItemId=cloud.items[localItemId]||(UUID.test(localItemId)?localItemId:crypto.randomUUID());
    }catch(err){message('Sua edição continua em conflito: '+(err?.message||''));return;}
    if(cloud.pending.some(p=>p.localItemId===localItemId&&p.remoteListId===remoteListId)){
