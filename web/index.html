@@ -1309,6 +1309,8 @@ async function queryOpenCatalog(barcode,{fetchImpl=typeof fetch==='function'?fet
   if(res.status===429||res.status===503){lastStatus='limited';break;}
   if(!res.ok){lastStatus=res.status===404?'not_found':'unavailable';continue;}
   const body=await res.json(),obj=body.product||{};
+  const returnedCode=gtinKey(body.code||obj.code||'');
+  if(returnedCode&&returnedCode!==code){lastStatus='unavailable';continue;}
   const name=String(obj.product_name_pt||obj.product_name||'').trim();
   if(name){const product={barcode:code,name:name.slice(0,180),brand:String(obj.brands||'').slice(0,80),pack:String(obj.quantity||'').slice(0,55),imageUrl:String(obj.image_front_small_url||obj.image_front_url||obj.image_url||''),source:src.name,sourceId:src.id,license:src.license,sourceUrl:`https://${src.host}/product/${encodeURIComponent(code)}`};return {code,product,status:'found',at:now};}
  }catch(err){lastStatus=err?.name==='AbortError'?'timeout':'unavailable';}finally{clearTimeout(timer);}}
@@ -1704,6 +1706,44 @@ function imageFromCatalog(entry){
 }
 function catalogPhoto(row){const src=imageFromCatalog(row);return src?`<img class="catalog-product-thumb" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-product-image src="${esc(src)}" width="67" height="67" alt="Foto de ${esc(row.name)}">`:'<span class="catalog-product-placeholder" aria-hidden="true">🛒</span>';}
 
+// An item received from the second device has an EAN but no photo file. Look up
+// its packshot once, in the background. Never query by fuzzy title: this could
+// display a different brand, flavor or package. Network work is bounded and
+// never blocks the shopping list or triggers another cloud item operation.
+const PHOTO_REQUEST_CAP=12,PHOTO_REQUEST_PARALLEL=2;
+const photoLookupAttempted=new Set(),photoLookupQueue=[];
+let photoLookupInFlight=0,photoLookupCount=0;
+function schedulePhotoLookup(code){
+ if(!code||!navigator.onLine||photoLookupAttempted.has(code)||photoLookupCount+photoLookupQueue.length>=PHOTO_REQUEST_CAP)return;
+ const cached=state.catalogLookups?.[code];
+ if(cached&&Number.isFinite(cached.at)&&Date.now()-cached.at<Cat.CACHE_TTL_MS&&
+    (cached.status!=='found'||imageFromCatalog(cached.product)))return;
+ photoLookupAttempted.add(code);
+ photoLookupQueue.push(code);
+ queueMicrotask(pumpPhotoLookups);
+}
+function pumpPhotoLookups(){
+ while(photoLookupInFlight<PHOTO_REQUEST_PARALLEL&&photoLookupQueue.length){
+  const code=photoLookupQueue.shift();photoLookupInFlight++;photoLookupCount++;
+  void (async()=>{
+   const result=await Cat.queryOpenCatalog(code,{cache:{},timeoutMs:3500});
+   const image=imageFromCatalog(result.product);
+   if(result.status==='found'&&image){
+    state.catalogLookups[code]=result;
+    // Local-only cache. Photos and URLs are not included in the cloud payload.
+    save();
+    for(const row of document.querySelectorAll('[data-item-id]')){
+     const item=state.items.find(i=>i.id===row.dataset.itemId);
+     if(!item||C.barcodeKey(item.barcode)!==code)continue;
+     const el=row.querySelector('.item-icon');
+     if(el)el.innerHTML=listProductArtwork(item);
+    }
+   }else if(result.status==='not_found'){
+    state.catalogLookups[code]=result;save();
+   }
+  })().catch(()=>{}).finally(()=>{photoLookupInFlight--;pumpPhotoLookups();});
+ }
+}
 // Exact EAN/GTIN match first. No fuzzy search: a photo from a similar product
 // could mislead the user about the brand, volume or packaging.
 function listProductPhoto(item){
@@ -1714,7 +1754,9 @@ function listProductPhoto(item){
   const cached=state.catalogLookups?.[barcode]?.product;
   const catalog=state.catalog?.find(x=>C.barcodeKey(x.barcode)===barcode);
   const reference=references.find(x=>C.barcodeKey(x.barcode)===barcode);
-  return imageFromCatalog(cached)||imageFromCatalog(catalog)||imageFromCatalog(reference);
+  const image=imageFromCatalog(cached)||imageFromCatalog(catalog)||imageFromCatalog(reference);
+  if(!image&&C.validGTIN(barcode))schedulePhotoLookup(barcode);
+  return image;
  }
  const title=C.normalize(item?.name||'');
  const exact=references.find(x=>C.normalize(x.name)===title);
