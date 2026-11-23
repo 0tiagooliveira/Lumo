@@ -31,6 +31,14 @@ Esta versão reaproveita a experiência integral do arquivo histórico `legacy/L
 - **Somente os itens da lista são sincronizados nesta versão.** Descrições/categorias detalhadas, fotos, catálogo, notas, OCR, histórico de compras, preferências e backups continuam locais até contratos seguros dedicados. A UX desses recursos permanece visível e utilizável nos limites herdados do MVP, sem alegar homologação dos conectores externos.
 - A migração de compatibilidade de estado dos itens foi aplicada em 20261123010741, sem modificar registros existentes. Os testes SQL anteriores foram feitos em transações revertidas.
 
+## Fotos reais dos produtos
+
+Nas telas de **lista**, **modo mercado** e itens de histórico, o Lumo agora prefere a fotografia real do produto, seguindo esta ordem: foto já associada ao item, resultado local de consulta de EAN/GTIN, catálogo local por código e referências verificadas incluídas na aplicação. Para produtos sem código, somente aceita **nome exatamente igual** a uma referência com foto, evitando confundir marcas ou embalagens semelhantes.
+
+A leitura de EAN nas bases Open Food / Beauty / Products Facts passa a solicitar também a fotografia frontal quando ela existir. As imagens são carregadas com `loading="lazy"` e `decoding="async"` apenas de hosts HTTPS conhecidos; não são copiadas para o banco do usuário nem para o Supabase. Quando não houver imagem ou ela falhar, permanece o **ícone contextual** do produto. Fotos em conteúdo aberto dependem da qualidade/atualização das bases e **não devem ser interpretadas como prova de preço, quantidade ou marca**.
+
+A sincronização atual preserva EAN/GTIN e metadados essenciais, não o arquivo fotográfico. No segundo aparelho, uma imagem poderá reaparecer quando o mesmo GTIN estiver disponível no catálogo local.
+
 ## Validação e testes
 
 - `npm run check` → CI Node aprovado na branch candidata, incluindo regras de listas, login, conversão de produtos, importação de listas por texto, falhas de IndexedDB, exclusão confirmada e recuperação após reinício.
