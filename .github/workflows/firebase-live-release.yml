@@ -1,0 +1,56 @@
+name: Publicar Lumo no Firebase Hosting — release controlada
+
+on:
+  push:
+    branches: ['release/uselumo-photos-20261123']
+    paths: ['.github/workflows/firebase-live-release.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-live-uselumo
+  cancel-in-progress: false
+
+jobs:
+  firebase-live:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_CREDENTIAL: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LUMO_515518 || secrets.FIREBASE_SERVICE_ACCOUNT }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verificar app e contratos antes de publicar
+        run: |
+          set -euo pipefail
+          npm run check
+          node - <<'NODE'
+          const fs=require('fs');
+          const f=JSON.parse(fs.readFileSync('firebase.json','utf8'));
+          if(f.hosting.public!=='web'||f.hosting.site!=='uselumo')throw Error('Site de destino incorreto');
+          if(!fs.readFileSync('web/index.html','utf8').includes('listProductArtwork'))throw Error('Fotos de produtos ausentes');
+          if(!fs.readFileSync('web/experience-sync.mjs','utf8').includes('waitForLocalSave'))throw Error('Proteção contra perda de dados ausente');
+          console.log('Target confirmado: Firebase lumo-515518 / uselumo. Fotos e sincronização incluídas.');
+          NODE
+      - name: Exigir credencial de serviço privada e explícita
+        run: |
+          if [ -z "$FIREBASE_CREDENTIAL" ]; then
+            echo '::error::Publicação interrompida: configure o segredo FIREBASE_SERVICE_ACCOUNT_LUMO_515518 ou FIREBASE_SERVICE_ACCOUNT no GitHub Actions do repositório. Nunca envie a chave pelo chat.'
+            exit 1
+          fi
+      - name: Publicar no Firebase Hosting (live)
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_LUMO_515518 || secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: lumo-515518
+          channelId: live
+      - name: Verificar resposta pública
+        run: |
+          curl --fail --location --silent --show-error --retry 3 --retry-delay 3 \
+            https://uselumo.web.app/ -o "$RUNNER_TEMP/lumo-published.html"
+          grep -q 'lumo-identity-gate' "$RUNNER_TEMP/lumo-published.html"
+          grep -q 'listProductArtwork' "$RUNNER_TEMP/lumo-published.html"
+          echo 'Firebase live respondeu com a interface Lumo e o componente de fotos.'
