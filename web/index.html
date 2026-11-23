@@ -1572,20 +1572,20 @@ async function load(){
  }
  document.title=B.name+' · Listas e compras';const meta=$('meta[name=theme-color]');if(meta)meta.content=state.settings.accentColor;
  document.body.dataset.theme=state.theme==='dark'?'dark':'light';render();
- window.LumoLegacy={getState:()=>state,activeListId:()=>activeList()?.id,waitForLocalSave:()=>saveInFlight||Promise.resolve(),shareText:()=>shareList(),applyRemote:(mutator)=>{window.__lumoApplyingCloud=true;try{mutator(state);save();render();}finally{window.__lumoApplyingCloud=false;}}};
+ window.LumoLegacy={getState:()=>state,activeListId:()=>activeList()?.id,waitForLocalSave:async()=>{if(saveInFlight)await saveInFlight;if(saveLastError)throw Error('Não foi possível confirmar o salvamento local; nuvem interrompida até resolver o armazenamento.');},shareText:()=>shareList(),applyRemote:(mutator)=>{window.__lumoApplyingCloud=true;try{mutator(state);save();render();}finally{window.__lumoApplyingCloud=false;}}};
  window.dispatchEvent(new Event('lumo:legacy-loaded'));
  if('serviceWorker'in navigator&&location.protocol!=='file:'&&window.isSecureContext)navigator.serviceWorker.register('./sw.js').catch(()=>{});
 }
 // Serialize no more than one IDB write at a time. Avoid cloning all receipts/photos
 // on every tap; IDB already snapshots the object at put(). Subsequent edits coalesce.
-let saveInFlight=null,saveDirty=false;
+let saveInFlight=null,saveDirty=false,saveLastError=null;
 function save(){
  state.updatedAt=now();saveDirty=true;if(!window.__lumoApplyingCloud)queueMicrotask(()=>window.dispatchEvent(new Event('lumo:local-changed')));
  if(!saveInFlight){
   saveInFlight=(async()=>{
    while(saveDirty){saveDirty=false;
-    try{if(!dbFallback&&idb)await putDB(state);else localStorage.setItem('compras-laranja-state-'+window.__lumoUserId,JSON.stringify(state));}
-    catch(e){console.error('Não foi possível guardar:',e);toast('Armazenamento cheio ou indisponível. Exporte seus dados.');break;}
+    try{if(!dbFallback&&idb)await putDB(state);else localStorage.setItem('compras-laranja-state-'+window.__lumoUserId,JSON.stringify(state));saveLastError=null;}
+    catch(e){saveLastError=e;console.error('Não foi possível guardar:',e);toast('Armazenamento cheio ou indisponível. Exporte seus dados.');break;}
    }
   })().finally(()=>{saveInFlight=null;});
  }
