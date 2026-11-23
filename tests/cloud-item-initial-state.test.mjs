@@ -5,7 +5,7 @@ import {itemPayload,fromCloud} from '../web/experience-sync-core.mjs';
 
 // Contract test: checks checked-in SQL, not a running Postgres instance.
 // A separate real-database authorization + RPC smoke is a release gate.
-const migration=readFileSync(new URL('../supabase/migrations/20261123002500_lumo_preserve_item_initial_state.sql',import.meta.url),'utf8');
+const migration=readFileSync(new URL('../supabase/migrations/20261123010741_lumo_preserve_item_initial_state.sql',import.meta.url),'utf8');
 const addPart=migration.split("if p_action='add' then")[1]?.split("\n else\n  select * into i")[0]||'';
 
 test('SQL insert records initial state and validates allowed states',()=>{
