@@ -10,10 +10,8 @@ const secret=process.env.LUMO_TEST_JWT_SECRET;
 const OWNER='00000000-0000-4000-8000-000000000951';
 const EDITOR='00000000-0000-4000-8000-000000000952';
 const VIEWER='00000000-0000-4000-8000-000000000953';
-if(!base||!secret||!/^https?:\/\/127\.0\.0\.1:\d+\/?$/.test(base)||
-   process.env.LUMO_TEST_DISPOSABLE_DB!=='yes'){
- throw Error('Refusing HTTP contract test: requires disposable localhost PostgREST and explicit opt-in');
-}
+const disposableHttpReady=!!base&&!!secret&&/^https?:\/\/127\.0\.0\.1:\d+\/?$/.test(base)&&
+ process.env.LUMO_TEST_DISPOSABLE_DB==='yes';
 
 function sign(sub){
  const encode=obj=>Buffer.from(JSON.stringify(obj)).toString('base64url');
@@ -45,7 +43,8 @@ function forbidden(result,where){
   where+': expected access denial but got '+result.status+' '+String(result.raw).slice(0,450));
 }
 
-test('isolated HTTP: owner, editor, viewer, revocation, RLS, replay and restoration',async()=>{
+test('isolated HTTP: owner, editor, viewer, revocation, RLS, replay and restoration',
+ {skip:disposableHttpReady?false:'requires disposable localhost PostgREST and explicit opt-in'},async()=>{
  const a=sign(OWNER),b=sign(EDITOR),c=sign(VIEWER);
  const unauth=await call(null,'/shopping_lists?select=id');
  forbidden(unauth,'Anonymous table listing');
