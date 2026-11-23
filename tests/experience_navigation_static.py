@@ -83,13 +83,22 @@ async def main():
    body='<svg xmlns="http://www.w3.org/2000/svg" width="43" height="43"></svg>'))
   await page.evaluate("""() => window.LumoLegacy.applyRemote(s => {
    s.items.push({id:'shared-photo-check',listId:s.activeListId,barcode:'7891234567895',
-    name:'Café para teste',details:'',category:'Mercearia',
+    name:'Meu café',details:'',category:'Mercearia',
     qty:1,unit:'un',unitPriceCents:0,status:'pending',createdAt:new Date().toISOString()});
   })""")
   shared=page.locator('[data-item-id="shared-photo-check"] img.item-photo')
   await shared.wait_for(state='attached',timeout=9000)
   assert 'images.openfoodfacts.org' in (await shared.get_attribute('src'))
   assert len(photo_calls)==1,'One GTIN lookup must not repeat on subsequent renders'
+  learned=await page.evaluate("""() => {
+   const state=window.LumoLegacy.getState();
+   const catalog=state.catalog.find(x=>x.barcode==='7891234567895');
+   const item=state.items.find(x=>x.id==='shared-photo-check');
+   return {name:catalog?.name,source:catalog?.source,localName:item?.name};
+  }""")
+  assert learned['name']=='Café para teste', 'Trusted public product description must enrich local catalog'
+  assert learned['localName']=='Meu café', 'Automatic catalog changes must never overwrite a shopping item'
+  assert learned['source'], 'Product provenance should be recorded'
   await page.locator('[data-action="nav"][data-to="purchase"]').last.click()
   await page.wait_for_timeout(200)
   assert len(photo_calls)==1,'Photo lookup result must be reused from the local cache'
