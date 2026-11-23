@@ -13,12 +13,12 @@ const VIEWER='00000000-0000-4000-8000-000000000953';
 const disposableHttpReady=!!base&&!!secret&&/^https?:\/\/127\.0\.0\.1:\d+\/?$/.test(base)&&
  process.env.LUMO_TEST_DISPOSABLE_DB==='yes';
 
-function sign(sub){
+function sign(sub,{key=secret,validForSeconds=600}={}){
  const encode=obj=>Buffer.from(JSON.stringify(obj)).toString('base64url');
  const header=encode({alg:'HS256',typ:'JWT'});
- const payload=encode({role:'authenticated',sub,aud:'authenticated',exp:Math.floor(Date.now()/1000)+600});
+ const payload=encode({role:'authenticated',sub,aud:'authenticated',exp:Math.floor(Date.now()/1000)+validForSeconds});
  const message=header+'.'+payload;
- return message+'.'+createHmac('sha256',secret).update(message).digest('base64url');
+ return message+'.'+createHmac('sha256',key).update(message).digest('base64url');
 }
 
 async function call(token,path,{method='GET',body}={}){
@@ -49,6 +49,10 @@ test('isolated HTTP: owner, editor, viewer, revocation, RLS, replay and restorat
  const unauth=await call(null,'/shopping_lists?select=id');
  forbidden(unauth,'Anonymous table listing');
  forbidden(await rpc(null,'lumo_create_list',{p_title:'not authorized'}),'Anonymous RPC');
+ const forged=await call(sign(OWNER,{key:'invalid synthetic signing key'}),'/shopping_lists?select=id');
+ assert.equal(forged.status,401,'Forged JWT signature must be rejected before RLS');
+ const expired=await call(sign(OWNER,{validForSeconds:-60}),'/shopping_lists?select=id');
+ assert.equal(expired.status,401,'Expired JWT must not grant authenticated reads');
  const listId=ok(await rpc(a,'lumo_create_list',{p_title:'Compras HTTPS CI'}),'Create list');
  assert.match(listId,/^[0-9a-f-]{36}$/);
  const itemId=randomUUID(),operationId=randomUUID();
