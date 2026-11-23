@@ -51,6 +51,8 @@ async def main():
   assert await photo.count()==1,'Known GTIN must display its real catalog photo'
   assert 'edge.osuper.com.br' in (await photo.get_attribute('src'))
   assert await page.locator('[data-item-id="photo-fallback-check"] img').count()==0, 'Never display an untrusted image'
+  await photo.evaluate("(img) => img.dispatchEvent(new Event('error'))")
+  assert await page.locator('[data-item-id="photo-ean-check"] .item-icon span').count()==1, 'Failed image must return to contextual icon'
   await page.locator('[data-action="nav"][data-to="purchase"]').last.click()
   assert await page.locator('[data-item-id="photo-ean-check"] img.item-photo').count()==1, 'Shopping mode must also show photo'
   print('Trusted EAN image in list/purchase and safe fallback: PASS')
