@@ -16,12 +16,15 @@ async def main():
             headless=True, args=['--no-sandbox'])
         # Check the exact published commit, not merely a 200 from a stale CDN.
         if EXPECTED_SHA:
-            async with playwright.request.new_context() as client:
+            client=await playwright.request.new_context()
+            try:
                 result=await client.get(URL+'release.json', timeout=20000)
                 assert result.status==200, f'release manifest HTTP {result.status}'
                 manifest=await result.json()
                 assert manifest.get('commit')==EXPECTED_SHA, 'Firebase release SHA mismatch'
                 assert manifest.get('site')=='uselumo', 'Wrong Firebase Hosting site'
+            finally:
+                await client.dispose()
         for label,width,height in [('mobile',390,844),('tablet',1024,768)]:
             context=await browser.new_context(
                 viewport={'width':width,'height':height},
