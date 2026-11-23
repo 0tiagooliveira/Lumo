@@ -2272,7 +2272,14 @@ case'item-edit':{
  if(barcode&&!C.validGTIN(barcode))return toast('EAN inválido. Confira o número antes de salvar.');
  let result;
  change(()=>{
-  const data={name,details:x.details||'',barcode,qty:Number(x.qty),unit:x.unit,category:x.category,imageUrl:imageFromCatalog(existing)||imageFromCatalog(modalData),unitPriceCents:C.toCents(x.price),status:x.status,updatedAt:now()};
+  const previousCode=C.barcodeKey(existing?.barcode||modalData.barcode||'');
+  const nextCode=C.barcodeKey(barcode)||'';
+  // Do not retain an old product photo when the EAN or an unbarcoded
+  // product name changes: this can show a different brand/package.
+  const sameProduct=nextCode?previousCode===nextCode:
+   (!previousCode&&C.normalize(name)===C.normalize(existing?.name||modalData.name||''));
+  const photo=sameProduct?(imageFromCatalog(existing)||imageFromCatalog(modalData)):'';
+  const data={name,details:x.details||'',barcode,qty:Number(x.qty),unit:x.unit,category:x.category,imageUrl:photo,unitPriceCents:C.toCents(x.price),status:x.status,updatedAt:now()};
   if(existing){Object.assign(existing,data);catalogUpsert(existing);result={item:existing,merged:false};}
   else result=addItem(data);
   if(result?.item){lastAnimatedItemId=result.item.id;lastAnimationTime=Date.now();}
