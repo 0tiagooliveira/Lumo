@@ -23,9 +23,11 @@ A implementação da RPC `lumo_apply_item`, no ramo `p_action='add'`, lia nome, 
 
 **Estado da implantação:** somente proposta no GitHub. Não aplicar automaticamente no banco remoto até a revisão da migração e teste E2E. O código frontend publicado ainda não foi homologado com esta migração.
 
-## Atenção: histórico de migrações
+## Histórico de migrações reconciliado no PR
 
-As três migrações já presentes no banco remoto têm versões completas `20261122182007`, `20261122182029` e `20261122192056`, enquanto os arquivos históricos do repositório usam prefixos curtos `20261122_`. **Antes de usar `supabase db push` ou outra aplicação automática**, conciliar os arquivos históricos com o histórico remoto para impedir duplicação de DDL. A migração nova usa prefixo completo de 14 dígitos, mas isso não corrige o descompasso histórico sozinho. Nenhuma migração foi aplicada nesta auditoria.
+As três migrações remotas possuem versões `20261122182007`, `20261122182029` e `20261122192056`. O SQL armazenado no histórico remoto foi comparado com os arquivos do GitHub: a primeira migração coincide literalmente; as outras duas coincidem após remover apenas comentários e normalizar espaços. Os arquivos históricos foram **renomeados neste PR** para reproduzir os números e nomes registrados no Supabase, sem executar DDL no banco. A migração nova `20261123002500_lumo_preserve_item_initial_state.sql` permanece proposta, não aplicada.
+
+Antes de qualquer `supabase db push`, verificar `supabase migration list` no ambiente autenticado correto e conferir que somente a migração nova está pendente. O ajuste do histórico no GitHub não é prova de que a CLI local está configurada ou autorizada a escrever no projeto remoto.
 
 ## Consultas de auditoria não destrutivas
 
