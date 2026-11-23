@@ -1,6 +1,6 @@
 # Lumo — recuperação da UX completa com autenticação Google e listas no Supabase
 
-**22/11/2026 · ramo candidato, não publicado · baseada no MVP v1.7 original**
+**22/11/2026 · candidato PR #1, ainda não implantado · baseado no MVP v1.7 original**
 
 ## Por que esta branch existe
 
@@ -31,43 +31,37 @@ Esta versão reaproveita a experiência integral do arquivo histórico `legacy/L
 - **Somente os itens da lista são sincronizados nesta versão.** Descrições/categorias detalhadas, fotos, catálogo, notas, OCR, histórico de compras, preferências e backups continuam locais até contratos seguros dedicados. A UX desses recursos permanece visível e utilizável nos limites herdados do MVP, sem alegar homologação dos conectores externos.
 - A migração mais recente **não mexe nos usuários nem nas listas reais existentes**; testes SQL foram feitos em transações revertidas.
 
-## Testes executados
+## Validação e testes
 
-- `npm run check` → **44 testes Node aprovados**, incluindo 1 cenário **simulado** de duas contas, convite, alteração, offline e conflito.
-- `python tests/experience_visual_static.py` → renderização Chromium do MVP original em 360 / 390 / 430 px, sem JS de Auth.
-- `python tests/experience_navigation_static.py` → onboarding → 5 abas → quick add → Compra → Histórico → Nota com **Chromium e identidade simulada**.
-- `python tests/browser_smoke.py` → controles da versão reduzida `beta.html`, sem OAuth real.
-- SQL real Supabase em transação `ROLLBACK` → link idempotente, atualização de título, conflito, item excluído (tombstone), bloqueio para não membro e tentativa de tomar lista alheia. **Aprovado sem deixar dados sintéticos**.
-- Navegação HTTP local Playwright ficou **bloqueada por política** (`ERR_BLOCKED_BY_ADMINISTRATOR`). Não declaramos E2E Google/REST nesta versão.
-- Scanner físico, NFC-e real e dois celulares **AINDA NÃO FORAM HOMOLOGADOS**.
+- `npm run check` → CI Node aprovado na branch candidata, incluindo regras de listas, login, conversão de produtos, importação de listas por texto, falhas de IndexedDB, exclusão confirmada e recuperação após reinício.
+- `python tests/experience_visual_static.py` → comparação estática do MVP, sem OAuth real.
+- `python tests/experience_navigation_static.py` → navegação automatizada em Chromium com identidade simulada.
+- `python tests/browser_smoke.py` → smoke sintético, não substitui aparelho físico.
+- Alguns contratos Supabase foram exercitados com transações revertidas, sem deixar dados de teste. A integração **entre duas contas reais** continua sem aceite.
+- O usuário conseguiu ler EAN no tablet e no celular, além de QR fiscal; a câmera traseira teve problemas de foco e o PDF fiscal real ainda não foi importado integralmente.
+- **Não confundir código implementado, CI verde e homologação real.** Os testes T01–T17 e os portões da compra ainda precisam de evidências físicas.
 
-## Próxima publicação (canal de comparação separado)
+## Preparar somente uma prévia no Firebase
 
-Abra o Google Cloud Shell em `https://console.cloud.google.com/?project=lumo-515518` e execute:
+**Branch válida:** `codex/public-release-2026-11-22` (PR #1). Não use branches antigas de restauração para publicar.
 
-```sh
-cd ~/Lumo
-# Se o projeto ainda não existir, use git clone em vez dos três comandos abaixo:
-git fetch origin work/ux-restore-2026-11-22
-git checkout -B work/ux-restore-2026-11-22 origin/work/ux-restore-2026-11-22
-npm run check
-firebase hosting:channel:deploy ux-restored --project lumo-515518
+No computador Windows autorizado, com Firebase CLI autenticada no projeto correto:
+
+```powershell
+git fetch origin codex/public-release-2026-11-22
+git checkout -B codex/public-release-2026-11-22 origin/codex/public-release-2026-11-22
+powershell -ExecutionPolicy Bypass -File scripts/preview-firebase.ps1
 ```
 
-Se `~/Lumo` não existir:
+O script verifica árvore de trabalho limpa, SHA, `npm run check`, `firebase.json`, projeto e site antes de publicar **somente** um canal temporário. Não faz deploy no domínio `uselumo.web.app`.
 
-```sh
-git clone --branch work/ux-restore-2026-11-22 --single-branch https://github.com/0tiagooliveira/Lumo.git
-cd Lumo
-npm run check
-firebase hosting:channel:deploy ux-restored --project lumo-515518
-```
+A URL da prévia deverá ser autorizada como redirecionamento Google/Supabase antes do login e testada no celular e tablet reais. Prévia Firebase pode ser acessível publicamente; a segurança dos dados depende do Auth e das regras RLS.
 
-**A URL exata será apresentada pelo terminal.** Adicione-a em `Supabase → Authentication → URL Configuration → Redirect URLs` antes de fazer login Google. O canal `beta-privada` atual fica intocado. Preview do Firebase é publicamente acessível; dados ficam protegidos pela autenticação e pelo RLS, não pela obscuridade da URL.
+**Publicação live:** somente após aceite de segurança, testes físicos, versão identificada pelo SHA e aprovação explícita de GO. Veja [runbook de release](docs/RELEASE_CANDIDATO_2026-11-22.md).
 
 ## Bloqueios antes do uso real
 
-1. **Rotacionar o Google OAuth Client Secret previamente exposto na conversa**, atualizar no Supabase e revogar o antigo.
+1. Verificar configuração, validade e rotação preventiva das credenciais OAuth e as URLs de redirecionamento em ambiente privado, sem registrar credenciais no GitHub.
 2. Verificar G1/G2 com duas contas e dois celulares, offline real, invitação, renomeação e revogação, inclusive teste direto da API REST.
 3. Migrar campos restantes dos itens (categoria/detalhes) e construir contratos transacionais para compra, notas e histórico compartilhado. Não dar a entender que estes dados já estão na nuvem.
 4. Confirmar scanner EAN na câmera física e importação de documento fiscal real com consentimento adequado.
