@@ -23,6 +23,7 @@ async def main():
                 manifest=await result.json()
                 assert manifest.get('commit')==EXPECTED_SHA, 'Firebase release SHA mismatch'
                 assert manifest.get('site')=='uselumo', 'Wrong Firebase Hosting site'
+                assert manifest.get('project')=='lumo-515518', 'Wrong Firebase project'
             finally:
                 await client.dispose()
         for label,width,height in [('mobile',390,844),('tablet',1024,768)]:
