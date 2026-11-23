@@ -42,3 +42,12 @@ Este não é um catálogo global: a base de produtos compartilhada no Supabase e
 A foto de um produto agora é invalidada quando o usuário altera o EAN ou muda a identificação de um item sem EAN; assim, uma embalagem anterior não fica associada ao produto novo. O teste Chromium cobre a troca do EAN de açúcar União 1 kg para 5 kg e verifica a fotografia correspondente. A revisão também aumenta a confiabilidade do deploy: grava um manifesto público com o SHA exato, impede cache da verificação e valida a versão servida pelo Firebase.
 
 **Situação final deste registro:** a versão com fotos foi **publicada** e a verificação de origem/commit no Firebase passou. Nenhuma chave deve ser enviada por mensagem ou salva em Markdown.
+
+## Atualização automática de cadastros — publicação confirmada
+
+- **Revisão publicada:** `6f936c45fb8440f7b50cd8664fa53c80cca76db6`.
+- **Validação GitHub Actions:** https://github.com/0tiagooliveira/Lumo/actions/runs/45095701750 (testes pré-deploy, Firebase Hosting live, SHA público e gate de login em Chromium mobile/tablet aprovados).
+- **Aprendizado local:** EAN reconhecido acrescenta catálogo com nome, marca, embalagem, foto e procedência, respeitando edições pessoais; referências podem ser revalidadas após 14 dias, com limites de consultas.
+- **Catálogo central ainda pendente:** proposta RLS e filas privadas foram validadas apenas em transação revertida; não há escrita compartilhada nem agendamento ativo no Supabase.
+- **Licenciamento:** fornecedores abertos têm condições de reutilização e atribuição; o registro de origem deve acompanhar futuras republicações de fotos/metadados.
+
