@@ -238,7 +238,16 @@ export function attachCloudSync({legacy,account,session,status,panel}){
     else if(current)Object.assign(current,{...fromCloud(server,localListId),id:localItemId,details:current.details,category:current.category});
     else state.items.push({...fromCloud(server,localListId),id:localItemId});
    });
-   saveShadow(remoteListId,localItemId,server);
+   // Resolver um conflito também é uma atualização recebida da nuvem:
+   // somente confirme o shadow depois que a escrita local for durável.
+   try{
+    await legacy.waitForLocalSave?.();
+    saveShadow(remoteListId,localItemId,server);
+   }catch(err){
+    message('Não foi possível salvar a versão da nuvem neste aparelho. O conflito foi mantido para tentar novamente. '+(err?.message||''));
+    report();
+    return;
+   }
   }else if(choice==='local'){
    // A new operation ID is required after the user explicitly approves retrying
    // against the current server revision; never mutate or reuse the rejected op.
