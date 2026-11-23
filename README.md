@@ -29,7 +29,7 @@ Esta versão reaproveita a experiência integral do arquivo histórico `legacy/L
 - A outra conta entra por convite de uso único (24 h) e recebe os itens via RLS; alterações são verificadas em polling de ~12s.
 - Modificações offline mantêm os dados no aparelho e guardam operações com UUID até ACK do servidor. Conflitos são preservados e precisam ser revisados; nunca tratar fila como sincronização concluída.
 - **Somente os itens da lista são sincronizados nesta versão.** Descrições/categorias detalhadas, fotos, catálogo, notas, OCR, histórico de compras, preferências e backups continuam locais até contratos seguros dedicados. A UX desses recursos permanece visível e utilizável nos limites herdados do MVP, sem alegar homologação dos conectores externos.
-- A migração mais recente **não mexe nos usuários nem nas listas reais existentes**; testes SQL foram feitos em transações revertidas.
+- A migração de compatibilidade de estado dos itens foi aplicada em 20261123010741, sem modificar registros existentes. Os testes SQL anteriores foram feitos em transações revertidas.
 
 ## Validação e testes
 
