@@ -1896,9 +1896,10 @@ function marketCatalogSettings(){
  return `<div class="section-head"><h2>Catálogo do Lumo</h2><span class="status-chip">Pronto para usar</span></div><div class="card market-settings"><div class="row spread"><div><strong>${total} referências já disponíveis</strong><p class="small muted mt-6">Produtos de oito supermercados com EAN e fotos quando disponíveis. Não é necessário importar arquivos.</p></div><span class="catalog-initial-dot" aria-hidden="true">✳</span></div><button type="button" class="btn btn-primary btn-full mt-14" data-action="catalog-browse">${icon('search',18)} Buscar produtos</button><p class="small muted mt-14">${linked} identificação(ões) aprovada(s) por você. O Lumo pesquisa os códigos conhecidos automaticamente ao ler a nota e consulta bases abertas por EAN quando online.</p><details class="market-providers"><summary>Ver cobertura e origem</summary>${Cat.MARKETS.filter(m=>m.id!=='outro').map(m=>`<div class="market-provider-row"><div><strong>${esc(m.name)}</strong><small>Referências verificadas e fotos por URL · cobertura inicial, sem feed integral</small></div><span>${Cat.allEntries(state.marketProducts).filter(x=>x.marketId===m.id).length} itens</span></div>`).join('')}<div class="market-provider-row"><div><strong>Open Food / Beauty / Products Facts</strong><small>Busca por EAN quando online; informações colaborativas e sujeitas a revisão</small></div></div></details><p class="small muted mt-14">Preços online, quando registrados, são referências da data de consulta, não o preço atual da loja e nunca o valor efetivamente pago.</p></div>`;
 }
 let openSearchResults=[];
+const failedProductImageUrls=new Set();
 function imageFromCatalog(entry){
  const raw=String(entry?.imageUrl||entry?.image_front_small_url||'');if(!raw)return '';
- try {const url=new URL(raw);const domains=['edge.osuper.com.br','osuper-ecommerce-condor.s3.sa-east-1.amazonaws.com','osuper-product-vault.s3.sa-east-1.amazonaws.com','muffatosupermercados.vtexassets.com','images.openfoodfacts.org','images.openbeautyfacts.org','images.openproductsfacts.org'];if(url.protocol!=='https:'||!domains.includes(url.hostname))return '';return url.href;}catch{return '';}
+ try {const url=new URL(raw);const domains=['edge.osuper.com.br','osuper-ecommerce-condor.s3.sa-east-1.amazonaws.com','osuper-product-vault.s3.sa-east-1.amazonaws.com','muffatosupermercados.vtexassets.com','images.openfoodfacts.org','images.openbeautyfacts.org','images.openproductsfacts.org'];if(url.protocol!=='https:'||!domains.includes(url.hostname)||failedProductImageUrls.has(url.href))return '';return url.href;}catch{return '';}
 }
 function catalogPhoto(row){const src=imageFromCatalog(row);return src?`<img class="catalog-product-thumb" loading="lazy" decoding="async" referrerpolicy="no-referrer" data-product-image src="${esc(src)}" width="67" height="67" alt="Foto de ${esc(row.name)}">`:'<span class="catalog-product-placeholder" aria-hidden="true">🛒</span>';}
 
@@ -1906,16 +1907,16 @@ function catalogPhoto(row){const src=imageFromCatalog(row);return src?`<img clas
 // its packshot once, in the background. Never query by fuzzy title: this could
 // display a different brand, flavor or package. Network work is bounded and
 // never blocks the shopping list or triggers another cloud item operation.
-const PHOTO_REQUEST_CAP=12,PHOTO_REQUEST_PARALLEL=2;
+const PHOTO_REQUEST_CAP=24,PHOTO_REQUEST_PARALLEL=2;
 const photoLookupAttempted=new Set(),photoLookupQueue=[];
 let photoLookupInFlight=0,photoLookupCount=0;
-function schedulePhotoLookup(code){
+function schedulePhotoLookup(code,{priority=false}={}){
  if(!code||!navigator.onLine||photoLookupAttempted.has(code)||photoLookupCount+photoLookupQueue.length>=PHOTO_REQUEST_CAP)return;
  const cached=state.catalogLookups?.[code];
  if(cached&&Number.isFinite(cached.at)&&Date.now()-cached.at<Cat.CACHE_TTL_MS&&
     (cached.status!=='found'||imageFromCatalog(cached.product)))return;
  photoLookupAttempted.add(code);
- photoLookupQueue.push(code);
+ if(priority)photoLookupQueue.unshift(code);else photoLookupQueue.push(code);
  queueMicrotask(pumpPhotoLookups);
 }
 function pumpPhotoLookups(){
@@ -3009,7 +3010,18 @@ async function handleCode(code,context){const val=String(code||'').trim();if(!va
 function inputEvent(e){if(e.target.id==='scan-zoom'){const track=scanStream?.getVideoTracks?.()[0],caps=track?.getCapabilities?.(),zoom=Number(e.target.value);if(track&&caps?.zoom&&zoom>=caps.zoom.min&&zoom<=caps.zoom.max){void track.applyConstraints({advanced:[{zoom}]}).catch(err=>console.warn('Zoom indisponível',err?.message||err));}return;}if(e.target.id==='catalog-browse-search'){const box=$('#catalog-browse-results');if(box)box.innerHTML=browseResults(e.target.value,$('#catalog-browse-market')?.value||'');return;}if(e.target.id==='custom-color'){const c=colorSafe(e.target.value);document.documentElement.style.setProperty('--accent',c);document.documentElement.style.setProperty('--accent-light',`color-mix(in srgb,${c} 18%,var(--surface))`);document.documentElement.style.setProperty('--accent-on',rgbContrast(c));const label=document.querySelector('#color-code');if(label)label.textContent=c;const dot=document.querySelector('.color-live-dot');if(dot)dot.style.background=c;}if(e.target.id==='product-search'){const start=e.target.selectionStart;filter=e.target.value;render();const input=$('#product-search');if(input){input.focus();try{input.setSelectionRange(start,start);}catch{}}}}
 document.addEventListener('pointermove',e=>{const svg=e.target.closest?.('.mascot-svg:not(.picker-mascot)');if(!svg)return;const r=svg.getBoundingClientRect();const x=Math.max(-2,Math.min(2,(e.clientX-(r.left+r.width/2))/r.width*5));const y=Math.max(-1.5,Math.min(1.5,(e.clientY-(r.top+r.height/2))/r.height*4));const face=svg.querySelector('.mascot-face');if(face){face.style.setProperty('--look-x',x+'px');face.style.setProperty('--look-y',y+'px');}}, {passive:true});
 document.addEventListener('pointerout',e=>{const svg=e.target.closest?.('.mascot-svg:not(.picker-mascot)');if(!svg||svg.contains(e.relatedTarget))return;const face=svg.querySelector('.mascot-face');if(face){face.style.setProperty('--look-x','0px');face.style.setProperty('--look-y','0px');}}, {passive:true});
-document.addEventListener('error',e=>{if(e.target?.matches?.('img[data-product-image]')){const span=document.createElement('span');span.className='catalog-product-placeholder';span.setAttribute('aria-hidden','true');span.textContent=e.target.dataset.fallbackEmoji||'🛒';e.target.replaceWith(span);}},true);document.addEventListener('click',handleAction);document.addEventListener('submit',handleForm);document.addEventListener('change',e=>{if(e.target.id==='scan-camera-choice'){scannerDeviceId=e.target.value||null;stopScan();void initScan();return;}if(e.target.id==='catalog-browse-market'){const box=$('#catalog-browse-results');if(box)box.innerHTML=browseResults($('#catalog-browse-search')?.value||'',e.target.value);return;}if(e.target.id==='market-review-choice'){modalData.marketId=e.target.value;render();return;}if(e.target.matches('input[type=file]'))handleFile(e);if(e.target.id==='custom-color'){const hex=colorSafe(e.target.value);if(state.onboarded)change(()=>state.settings.accentColor=hex);else{onboardDraft.accentColor=hex;render();}toast('Sua cor foi aplicada!');}});document.addEventListener('input',inputEvent);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal)closeModal();if((e.key==='Enter'||e.key===' ')&&e.target.matches('.list-card[role=button],.history-card[role=button],.mascot-svg[role=button]')){e.preventDefault();e.target.click();}});
+document.addEventListener('error',e=>{
+ const img=e.target;if(!img?.matches?.('img[data-product-image]'))return;
+ // Broken photo links should never leave a blank square. Avoid retrying the
+ // same URL repeatedly; prioritize the clicked/listed GTIN for a second source.
+ try{failedProductImageUrls.add(new URL(img.currentSrc||img.src).href);}catch{}
+ const row=img.closest('[data-item-id]'),item=row?.dataset.itemId?state.items.find(i=>i.id===row.dataset.itemId):null;
+ const code=C.barcodeKey(item?.barcode||'');
+ const span=document.createElement('span');span.className='catalog-product-placeholder';
+ span.setAttribute('aria-hidden','true');span.textContent=img.dataset.fallbackEmoji||'🛒';
+ img.replaceWith(span);
+ if(code&&C.validGTIN(code))schedulePhotoLookup(code,{priority:true});
+},true);document.addEventListener('click',handleAction);document.addEventListener('submit',handleForm);document.addEventListener('change',e=>{if(e.target.id==='scan-camera-choice'){scannerDeviceId=e.target.value||null;stopScan();void initScan();return;}if(e.target.id==='catalog-browse-market'){const box=$('#catalog-browse-results');if(box)box.innerHTML=browseResults($('#catalog-browse-search')?.value||'',e.target.value);return;}if(e.target.id==='market-review-choice'){modalData.marketId=e.target.value;render();return;}if(e.target.matches('input[type=file]'))handleFile(e);if(e.target.id==='custom-color'){const hex=colorSafe(e.target.value);if(state.onboarded)change(()=>state.settings.accentColor=hex);else{onboardDraft.accentColor=hex;render();}toast('Sua cor foi aplicada!');}});document.addEventListener('input',inputEvent);document.addEventListener('keydown',e=>{if(e.key==='Escape'&&modal)closeModal();if((e.key==='Enter'||e.key===' ')&&e.target.matches('.list-card[role=button],.history-card[role=button],.mascot-svg[role=button]')){e.preventDefault();e.target.click();}});
 document.addEventListener('visibilitychange',()=>{
  if(document.hidden&&modal==='scanner'){
   stopScan();
