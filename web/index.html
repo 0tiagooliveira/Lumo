@@ -1666,19 +1666,15 @@ function home(){
   const count=l?itemsFor(l.id).filter(x=>x.status==='pending').length:0;
   return `${header()}
   <section class="home-intro">
-    <div class="eyebrow">SEU DIA MAIS LEVE COMEÇA AQUI</div>
     <h1 class="display">Tudo na lista.<br><span class="accent-word">Nada na cabeça.</span></h1>
     <p class="subhead">${esc(state.userName?`Oi, ${state.userName}! `:'')}Faça sua lista, aproveite a compra e deixe os números com a gente.</p>
-    <span class="welcome-mark"><span class="pulse-dot"></span> Pronto para sua próxima compra</span>
   </section>
   <section class="hero">
     <span class="hero-ornament" aria-hidden="true"></span>
     <div class="row spread">${mascot()}</div>
-    <div class="eyebrow mt-14">SUA LISTA ATIVA</div>
     <h1 class="mt-14">${esc(l?.name||'Sua próxima lista começa aqui')}</h1>
     <p class="mt-6">${l?`${count} ${count===1?'item esperando':'itens esperando'} por você`:'Uma boa compra começa com um plano simples'}</p>
     <div class="hero-inset"><div class="row spread"><div><div class="tiny">TOTAL PREVISTO</div><div class="hero-value">${money(C.listTotal(l?itemsFor(l.id).filter(x=>x.status!=='missing'):[]))}</div></div><button class="btn btn-dark" data-action="nav" data-to="${l?'list':'lists'}" ${l?`data-list-id="${l.id}"`:''}>${l?'Ver minha lista':'Criar lista'} ${icon('forward')}</button></div></div>
-    <div class="hero-note">${icon('check',16)} Uma compra de cada vez. Sem correria.</div>
   </section>
   <div class="section-head"><h2>O que vamos fazer?</h2><span class="status-chip orange">Seu ritmo ✳</span></div>
   <div class="home-grid">
