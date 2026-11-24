@@ -44,6 +44,8 @@ jobs:
           python -m playwright install --with-deps chromium
       - name: Validate mobile UX, real product imagery contract and shared EAN photos
         run: python tests/experience_navigation_static.py
+      - name: Verify premium responsive Google entry on Galaxy phones and tablet
+        run: python tests/login_responsive_static.py
       - name: Registrar SHA da versão a publicar
         run: |
           node - <<'NODE'
