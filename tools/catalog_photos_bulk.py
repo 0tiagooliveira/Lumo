@@ -93,11 +93,11 @@ def process_sister_datasets(fields,stats):
             print("FONTE",label,flush=True)
             with fetch(url,120) as response:
                 with gzip.GzipFile(fileobj=response,mode="rb") as gz:
-                    h=gz.readline().decode("utf-8",errors="replace").rstrip("\\n").split("\\t")
+                    h=gz.readline().decode("utf-8",errors="replace").rstrip("\n").split("\t")
                     idx={x:i for i,x in enumerate(h)}
                     if "code" not in idx:raise ValueError("sem code")
                     for line in gz:
-                        code=line.split(b"\\t",1)[0].decode("ascii",errors="ignore").strip('"')
+                        code=line.split(b"\t",1)[0].decode("ascii",errors="ignore").strip('"')
                         x=fields.get(code)
                         if x is not None and not x.get("imagem_url"):
                             before=bool(x.get("imagem_url"))
