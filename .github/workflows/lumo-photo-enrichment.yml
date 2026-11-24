@@ -1,0 +1,29 @@
+name: Lumo - enriquecer fotos por EAN (auditoria)
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/catalog_photos_bulk.py'
+      - '.github/workflows/lumo-photo-enrichment.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  fotos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Cruzar 13113 EANs e URLs reais
+        run: python tools/catalog_photos_bulk.py
+      - name: Salvar CSV, relatorio e evidencias
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lumo-fotos-ean
+          path: output/
+          if-no-files-found: warn
+          retention-days: 7
