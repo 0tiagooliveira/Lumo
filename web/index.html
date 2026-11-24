@@ -1676,7 +1676,7 @@ function home(){
     <p class="mt-6">${l?`${count} ${count===1?'item esperando':'itens esperando'} por você`:'Uma boa compra começa com um plano simples'}</p>
     <div class="hero-inset"><div class="row spread"><div><div class="tiny">TOTAL PREVISTO</div><div class="hero-value">${money(C.listTotal(l?itemsFor(l.id).filter(x=>x.status!=='missing'):[]))}</div></div><button class="btn btn-dark" data-action="nav" data-to="${l?'list':'lists'}" ${l?`data-list-id="${l.id}"`:''}>${l?'Ver minha lista':'Criar lista'} ${icon('forward')}</button></div></div>
   </section>
-  <div class="section-head"><h2>O que vamos fazer?</h2><span class="status-chip orange">Seu ritmo ✳</span></div>
+  <div class="section-head"><h2>O que vamos fazer?</h2></div>
   <div class="home-grid">
     <button class="home-tile" data-action="nav" data-to="lists"><span>${icon('lists',27)}</span><div><h3>Minhas listas</h3><small>${state.lists.length} lista(s) organizadas</small></div></button>
     <button class="home-tile" data-action="nav" data-to="purchase"><span>${icon('cart',27)}</span><div><h3>No mercado</h3><small>Marque o que entrou no carrinho</small></div></button>
