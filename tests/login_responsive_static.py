@@ -10,7 +10,7 @@ html=(ROOT/'web/index.html').read_text()
 css=(ROOT/'web/experience.css').read_text()
 # Test EXACTLY the deployed HTML without injecting a stylesheet: the previous
 # test concealed the missing CSS that caused an oversized SVG in production.
-assert '<style id="lumo-entry-critical">\\n'.replace('\\n','\n')+css.strip()+'\n</style>' in html, 'Critical entry CSS must be inlined and match source'
+assert f'<style id="lumo-entry-critical">\\n{css.strip()}\\n</style>' in html, 'Critical entry CSS must be inlined and match source'
 assert '<link rel="stylesheet" href="./experience.css">' not in html, 'Login cannot depend on external CSS'
 html=html.replace('<script type="module" src="./experience-auth.mjs"></script>','')
 # The gate would be hidden by the auth module after sign-in; this fixture is pre-login.
