@@ -1,4 +1,4 @@
-const CACHE = 'lumo-login-inline-css-v1-20261123';
+const CACHE = 'lumo-live-cleanup-v2-20261123';
 const CORE = ['./', './index.html', './experience-auth.mjs', './experience-sync.mjs', './experience-sync-core.mjs', './oauth.mjs', './config.js', './manifest.webmanifest'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE))));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))));
