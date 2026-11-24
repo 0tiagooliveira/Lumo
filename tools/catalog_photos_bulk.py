@@ -81,6 +81,36 @@ def process_off(fields,stats):
     except Exception as e:
         stats["off_erro"]=repr(e)
         print("Erro exportacao OFF:",repr(e),flush=True)
+def process_sister_datasets(fields,stats):
+    sources=[
+      ("Open Beauty Facts","https://static.openbeautyfacts.org/data/en.openbeautyfacts.org.products.csv.gz"),
+      ("Open Pet Food Facts","https://static.openpetfoodfacts.org/data/en.openpetfoodfacts.org.products.csv.gz"),
+      ("Open Products Facts","https://static.openproductsfacts.org/data/en.openproductsfacts.org.products.csv.gz")
+    ]
+    for label,url in sources:
+        count=0
+        try:
+            print("FONTE",label,flush=True)
+            with fetch(url,120) as response:
+                with gzip.GzipFile(fileobj=response,mode="rb") as gz:
+                    h=gz.readline().decode("utf-8",errors="replace").rstrip("\\n").split("\\t")
+                    idx={x:i for i,x in enumerate(h)}
+                    if "code" not in idx:raise ValueError("sem code")
+                    for line in gz:
+                        code=line.split(b"\\t",1)[0].decode("ascii",errors="ignore").strip('"')
+                        x=fields.get(code)
+                        if x is not None and not x.get("imagem_url"):
+                            before=bool(x.get("imagem_url"))
+                            off(line.decode("utf-8",errors="replace"),idx,fields,stats)
+                            if not before and x.get("imagem_url"):
+                                x["fonte_foto"]=label+" (EAN exato)"
+                                count+=1
+            stats[label+"_com_foto"]=count
+            print("FONTE OK",label,count,flush=True)
+        except Exception as e:
+            stats[label+"_erro"]=repr(e)[:250]
+            print("FONTE ERRO",label,repr(e),flush=True)
+
 def process_precomelhor(fields,stats,max_calls=60):
     # Free tier reported 100 requests/IP lifetime. Use <=60; stop at first 429/403.
     missing=[r for r in fields.values() if not r.get("imagem_url") and len(get_code(r["ean_gtin"])) in (8,12,13,14)]
@@ -122,6 +152,7 @@ def run():
     stats=Counter()
     stats["produtos"]=len(rows);stats["antes"]=before
     process_off(fields,stats)
+    process_sister_datasets(fields,stats)
     process_precomelhor(fields,stats)
     cols=list(dict.fromkeys([*rows[0].keys(),"fonte_foto","nome_na_fonte","status_foto"]))
     with (OUT/"lumo_13113_fotos_enriquecidas.csv").open("w",encoding="utf-8-sig",newline="") as f:
