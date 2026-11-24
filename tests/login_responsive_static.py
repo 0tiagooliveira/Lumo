@@ -8,9 +8,11 @@ from playwright.async_api import async_playwright
 ROOT=Path(__file__).resolve().parents[1]
 html=(ROOT/'web/index.html').read_text()
 css=(ROOT/'web/experience.css').read_text()
+# Test EXACTLY the deployed HTML without injecting a stylesheet: the previous
+# test concealed the missing CSS that caused an oversized SVG in production.
+assert '<style id="lumo-entry-critical">\\n'.replace('\\n','\n')+css.strip()+'\n</style>' in html, 'Critical entry CSS must be inlined and match source'
+assert '<link rel="stylesheet" href="./experience.css">' not in html, 'Login cannot depend on external CSS'
 html=html.replace('<script type="module" src="./experience-auth.mjs"></script>','')
-html=html.replace('<link rel="stylesheet" href="./experience.css">',
-                  '<style>'+css+'</style>')
 # The gate would be hidden by the auth module after sign-in; this fixture is pre-login.
 html=html.replace('id="lumo-login-google" class="lumo-google-login" hidden',
                   'id="lumo-login-google" class="lumo-google-login"')
@@ -18,7 +20,7 @@ html=html.replace('id="lumo-login-google" class="lumo-google-login" hidden',
 async def main():
  async with async_playwright() as p:
   browser=await p.chromium.launch(executable_path='/usr/bin/chromium',headless=True,args=['--no-sandbox'])
-  for name,width,height in [('S23',360,780),('S25_FE',412,915),('Tab_A11_portrait',800,1180),
+  for name,width,height in [('S23',360,780),('S25_FE',412,915),('Tab_A11_portrait',800,1180),('Tab_A11_960',960,1280),
                              ('Tab_A11_landscape',1180,800)]:
    page=await browser.new_page(viewport={'width':width,'height':height},device_scale_factor=1)
    errors=[]
@@ -28,6 +30,14 @@ async def main():
    assert await gate.is_visible(), f'{name}: gate hidden'
    assert await page.locator('#lumo-gate-title').is_visible(),f'{name}: introduction invisible'
    assert await page.locator('.lumo-gate-illustration').count()==1,f'{name}: mascot illustration missing'
+   bg=await page.locator('.lumo-gate-story').evaluate('el=>getComputedStyle(el).backgroundColor')
+   assert bg=='rgb(30, 42, 64)',f'{name}: critical CSS did not apply (story bg={bg})'
+   benefit=await page.locator('.lumo-gate-benefits svg').first.bounding_box()
+   assert benefit and benefit['width']<=25 and benefit['height']<=25, f'{name}: oversized unstyled icon'
+   art=await page.locator('.lumo-gate-illustration').bounding_box()
+   assert art and art['width']<=width*.85, f'{name}: illustration overflows screen'
+   card_bg=await page.locator('.lumo-gate-card').evaluate('el=>getComputedStyle(el).backgroundColor')
+   assert card_bg=='rgb(255, 255, 255)', f'{name}: login panel CSS absent'
    cta=page.locator('#lumo-login-google')
    assert await cta.is_visible(),f'{name}: Google sign-in not visible'
    assert await cta.is_enabled(),f'{name}: button unexpectedly disabled'
