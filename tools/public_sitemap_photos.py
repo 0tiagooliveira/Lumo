@@ -32,7 +32,7 @@ def child_images(url):
             if x:links.append(x)
         elif el.tag.rsplit("}",1)[-1]=="url":
             loc=loctext(el,"loc")
-            ean=(re.findall(r"(?<!\\d)\\d{8,14}(?!\\d)",loc) or [""])[-1]
+            ean=(re.findall(r"(?<!\d)\d{8,14}(?!\d)",loc) or [""])[-1]
             for img in el:
                 if img.tag.rsplit("}",1)[-1]=="image":
                     u=loctext(img,"loc")
@@ -48,7 +48,7 @@ def run():
         info={"site":site,"sitemap_sources":[]}
         try:
             robot=fetch(site+"/robots.txt").decode("utf-8","replace")
-            advertised=re.findall(r"(?im)^Sitemap:\\s*(https?://\\S+)",robot)
+            advertised=re.findall(r"(?im)^Sitemap:\s*(https?://\S+)",robot)
             info["robots_advertised"]=advertised[:10]
             paths=advertised[:3] or [site+"/sitemap.xml"]
             for path in paths:
