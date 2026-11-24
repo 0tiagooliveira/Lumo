@@ -7,7 +7,7 @@ from collections import Counter
 from pathlib import Path
 from urllib.parse import urlparse
 
-SOURCE_IDS=["1wQP-EtGR09sjriARSp64G-BecGEhrJHc","1Ozw78_Fn1t6LxBoie1OAZUL2fO87Rnga"]
+SOURCE_IDS=["1Ks26k0VAdIuY0BIfalzMggzfSk3Ji8Zg","1wQP-EtGR09sjriARSp64G-BecGEhrJHc","1Ozw78_Fn1t6LxBoie1OAZUL2fO87Rnga"]
 OFF_DUMP="https://static.openfoodfacts.org/data/en.openfoodfacts.org.products.csv.gz"
 UA="LumoCatalogPhotoEnrichment/1.0 (https://github.com/0tiagooliveira/Lumo; EAN-only)"
 OUT=Path("output")
@@ -111,40 +111,47 @@ def process_sister_datasets(fields,stats):
             stats[label+"_erro"]=repr(e)[:250]
             print("FONTE ERRO",label,repr(e),flush=True)
 
-def process_precomelhor(fields,stats,max_calls=60):
-    # Free tier reported 100 requests/IP lifetime. Use <=60; stop at first 429/403.
+def process_precomelhor(fields,stats,max_calls=120):
+    # Public documented endpoint: quota up to 1,000 products/day/IP, pace <=60/minute.
+    # Does not circumvent 403/429 or access restrictions; no payment.
     missing=[r for r in fields.values() if not r.get("imagem_url") and len(get_code(r["ean_gtin"])) in (8,12,13,14)]
     for row in missing[:max_calls]:
         code=row["ean_gtin"]
-        url="https://www.precomelhor.com.br/api/v1?ean="+code+"&include=product,brand,details"
+        url="https://www.precomelhor.com.br/api/product/"+code
         try:
-            with fetch(url,30) as resp: doc=json.load(resp)
+            with fetch(url,25) as resp:
+                doc=json.load(resp)
             stats["precomelhor_consultas"]+=1
-            # inspect only semantic image keys; do not mistake arbitrary links for photos
-            hits=[]
-            def crawl(obj,depth=0):
-                if depth>6:return
-                if isinstance(obj,dict):
-                    for k,v in obj.items():
-                        if k.lower() in ("image","image_url","imageurl","photo","photo_url","foto","foto_url","imagem","imagem_url","thumbnail"):
-                            if isinstance(v,str) and photo_url(v):hits.append(v)
-                        if isinstance(v,(dict,list)):crawl(v,depth+1)
-                elif isinstance(obj,list):
-                    for v in obj[:20]:crawl(v,depth+1)
-            crawl(doc)
-            if hits:
-                # User must review matching EAN + size before app publication
-                row["imagem_url"]=hits[0]
-                row["fonte_foto"]="PrecoMelhor API v1 (consulta por EAN)"
-                row["status_foto"]="CANDIDATO_PRECOMELHOR_REVISAO"
-                stats["precomelhor_com_foto"]+=1
+            if stats["precomelhor_consultas"]<=2:
+                print("PRECOMELHOR EXEMPLO",code,str(doc)[:450],flush=True)
+            product=doc.get("product") or doc.get("produto") or doc
+            if not isinstance(product,dict): continue
+            returned_code=get_code(product.get("ean") or product.get("gtin") or product.get("code") or "")
+            if returned_code != code:
+                stats["precomelhor_ean_divergente"]+=1
+                continue
+            url=photo_url(product.get("image_url") or product.get("imagem_url") or product.get("image") or product.get("foto_url") or "")
+            if not url: continue
+            pname=str(product.get("product_name") or product.get("name") or product.get("nome") or "")
+            brand=str(product.get("brand") or product.get("marca") or "")
+            overlap=norm(pname+" "+brand) & (norm(row.get("nome"))|norm(row.get("marca")))
+            if pname and not overlap:
+                stats["precomelhor_nome_divergente"]+=1
+                continue
+            row["imagem_url"]=url
+            row["fonte_foto"]="PrecoMelhor (EAN exato)"
+            row["nome_na_fonte"]=pname
+            row["status_foto"]="CANDIDATO_GTIN_EXATO_REVISAO"
+            stats["precomelhor_com_foto"]+=1
         except urllib.error.HTTPError as e:
             stats["precomelhor_erro_http"]=e.code
+            print("PRECOMELHOR HTTP",code,e.code,flush=True)
             if e.code in (401,403,429):break
         except Exception as e:
             stats["precomelhor_erro"]=repr(e)[:200]
             if stats["precomelhor_consultas"]==0:break
-        time.sleep(0.5)
+        time.sleep(1.2)
+
 def run():
     rows=master()
     fields={get_code(x["ean_gtin"]):x for x in rows if get_code(x["ean_gtin"])}
