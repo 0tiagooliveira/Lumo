@@ -38,6 +38,12 @@ async def main():
    assert not overflow,f'{name}: horizontal overflow'
    button=await cta.bounding_box()
    assert button['height']>=50,f'{name}: touch target too short'
+   if name in ('S23','S25_FE'):
+    assert button['y']+button['height']<=height+15,f'{name}: CTA must be immediately reachable'
+   if name.startswith('Tab_A11'):
+    columns=await page.locator('.lumo-gate-shell').evaluate(
+     'el=>getComputedStyle(el).gridTemplateColumns.split(" ").length')
+    assert columns==2,f'{name}: tablet should show two balanced columns'
    assert not errors,f'{name}: script errors {errors}'
    if name=='S23':
     await page.screenshot(path='/tmp/lumo_login_s23.png')
