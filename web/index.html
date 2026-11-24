@@ -316,9 +316,17 @@ body[data-theme=dark] .banner:not(.error):not(.success){color:#FFD6B2;}
 #toast.show{transform:translateX(-50%) translateY(-5px);}
 
 /* Partículas discretas: emitidas somente por ações do usuário. */
-.fx-layer{pointer-events:none;position:fixed;inset:0;z-index:100;overflow:hidden;}
-.fx-particle{position:absolute;left:0;top:0;width:9px;height:14px;border-radius:4px;background:var(--particle,#FF9638);transform:translate(-50%,-50%) scale(.1);animation:particleBurst .8s cubic-bezier(.18,.74,.28,1) both;}
-.fx-particle.fx-dot{width:8px;height:8px;border-radius:50%;}
+.lumo-confirm-feedback{position:fixed;z-index:250;pointer-events:none;isolation:isolate;display:grid;place-items:center;
+  transform:translate(-50%,-50%);width:56px;height:56px;filter:drop-shadow(0 6px 13px #101c3224);
+  animation:lumo-confirm-in .62s cubic-bezier(.22,.8,.24,1) both}
+.lumo-confirm-feedback .lumo-confirm-tick{width:54px;height:54px;display:block}
+.lumo-confirm-feedback.lumo-confirm-final{width:112px;height:140px;animation-duration:1.2s}
+.lumo-confirm-final .lumo-confirm-tick{position:relative;z-index:1;margin-top:-22px}
+.lumo-confirm-character{width:90px;height:90px;animation:lumo-confirm-mascot .72s ease-out both}
+.lumo-confirm-character svg{display:block;width:100%;height:100%}
+@keyframes lumo-confirm-in{0%{opacity:0;transform:translate(-50%,-48%) scale(.6)}28%{opacity:1;transform:translate(-50%,-55%) scale(1.05)}70%{opacity:1;transform:translate(-50%,-62%) scale(1)}100%{opacity:0;transform:translate(-50%,-72%) scale(.94)}}
+@keyframes lumo-confirm-mascot{0%{transform:rotate(-9deg) scale(.8)}55%{transform:rotate(6deg) scale(1.07)}100%{transform:rotate(0deg) scale(1)}}
+@media(prefers-reduced-motion:reduce){.lumo-confirm-feedback,.lumo-confirm-character{animation:none!important}}
 
 @keyframes fadeDown{from{opacity:0;transform:translateY(-12px)}to{opacity:1;transform:translateY(0)}}
 @keyframes riseIn{from{opacity:0;transform:translateY(15px) scale(.987)}to{opacity:1;transform:translateY(0) scale(1)}}
@@ -333,7 +341,6 @@ body[data-theme=dark] .banner:not(.error):not(.success){color:#FFD6B2;}
 @keyframes sheetIn{from{transform:translateY(40px);opacity:.6}to{transform:translateY(0);opacity:1}}
 @keyframes onboardEnter{from{transform:translateX(16px);opacity:0}to{transform:translateX(0);opacity:1}}
 @keyframes scanSweep{from{top:30%;opacity:.28}to{top:72%;opacity:1}}
-@keyframes particleBurst{0%{opacity:1;transform:translate(-50%,-50%) scale(.2) rotate(0)}75%{opacity:1}100%{opacity:0;transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.75) rotate(var(--rot))}}
 @media(min-width:750px){
   .main{padding-top:34px;}
   .page-accent{margin:0 0 27px;border-radius:38px;padding:27px 26px 30px;}
@@ -1731,23 +1738,20 @@ function palettePicker(current,mode='settings'){
  return `<div class="brand-picker"><div class="color-picker-heading"><div><div class="eyebrow">SUA IDENTIDADE</div><h3>Uma cor com a sua cara</h3><p>Escolha uma das cores ou crie a sua. Você pode mudar depois.</p></div><div class="color-current" style="--chosen:${col}"><span class="color-current-dot"></span><span>${esc(label)}</span></div></div><div class="color-grid" role="group" aria-label="Paleta de cores do aplicativo">${BRAND_PALETTE.map(c=>`<button type="button" class="color-swatch ${col===c.hex?'selected':''}" style="--swatch:${c.hex}" data-action="accent-color" data-value="${c.hex}" aria-label="Escolher ${c.name}" title="${c.name}" aria-pressed="${col===c.hex}"><span class="swatch-ink">${col===c.hex?icon('check',19):''}</span><span class="swatch-label">${c.name}</span></button>`).join('')}</div><div class="color-custom-row"><label class="custom-color-control" for="custom-color"><span class="custom-color-icon" style="--custom:${col}">${icon('edit',18)}</span><span><strong>Minha própria cor</strong><small>Escolha qualquer tonalidade</small></span><span class="color-custom-arrow">${icon('chevron',17)}</span><input id="custom-color" type="color" value="${col}" aria-label="Selecionar uma cor personalizada"></label><div class="color-live"><span>Cor atual</span><strong id="color-code">${col}</strong></div></div></div>`;
 }
 function mascotPicker(current){const active=mascotSafe(current);return `<div class="mascot-picker" role="group" aria-label="Escolha um mascote">${FRUITS.map(f=>`<button type="button" class="mascot-choice ${f.id===active?'selected':''}" data-action="mascot-select" data-value="${f.id}" aria-pressed="${f.id===active}"><span class="mascot-card-face" aria-hidden="true">${mascot('picker-mascot',f.id)}</span><span class="mascot-caption"><strong>${f.name}</strong><small>${f.caption}</small></span><span class="choice-check" aria-hidden="true">${f.id===active?icon('check',15):''}</span></button>`).join('')}</div>`;}
-function burstAt(x,y,celebration=false){
-  if(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
-  const layer=document.createElement('div');layer.className='fx-layer';layer.setAttribute('aria-hidden','true');
-  const colors=['#FF902B','#FFD776','#D1BAFF','#B8EC9B','#FFF4DC','#FFAF72'];
-  const count=celebration?28:9;
-  for(let k=0;k<count;k++){
-    const part=document.createElement('i');part.className='fx-particle'+(k%3===0?' fx-dot':'');
-    const angle=(Math.PI*2*k/count)+(celebration?0:Math.PI/10),distance=(celebration?75:26)+Math.random()*(celebration?160:45);
-    part.style.left=x+'px';part.style.top=y+'px';
-    part.style.setProperty('--dx',Math.round(Math.cos(angle)*distance)+'px');
-    part.style.setProperty('--dy',Math.round(Math.sin(angle)*distance+(celebration?50:15))+'px');
-    part.style.setProperty('--rot',Math.round(Math.random()*720-360)+'deg');
-    part.style.setProperty('--particle',colors[k%colors.length]);
-    part.style.animationDelay=(celebration?Math.random()*110:0)+'ms';
-    layer.appendChild(part);
-  }
-  document.body.appendChild(layer);setTimeout(()=>layer.remove(),celebration?1100:850);
+// A purchase confirmation belongs to the item, not a screen-wide confetti
+// shower. Show one precise check. For completed purchases, greet with the
+// user's active mascot. All effects are decorative and honour reduced motion.
+function confirmAt(x,y,complete=false){
+ if(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)return;
+ const node=document.createElement('div');
+ node.className='lumo-confirm-feedback'+(complete?' lumo-confirm-final':'');
+ node.setAttribute('aria-hidden','true');
+ node.style.left=Math.max(35,Math.min(window.innerWidth-35,x))+'px';
+ node.style.top=Math.max(35,Math.min(window.innerHeight-35,y))+'px';
+ const tick='<svg class="lumo-confirm-tick" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="28" cy="28" r="23" fill="var(--accent,#F97316)"/><path d="m17 28 8 8 15-17" stroke="var(--accent-on,#fff)" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+ node.innerHTML=(complete?`<div class="lumo-confirm-character">${mascot('history-mascot')}</div>`:'')+tick;
+ document.body.appendChild(node);
+ setTimeout(()=>node.remove(),complete?1250:650);
 }
 function toast(s){const el=$('#toast');if(!el)return;el.textContent=s;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3200);}
 function openDB(){return new Promise((resolve,reject)=>{if(!window.indexedDB)return reject(Error('sem indexedDB'));let req=indexedDB.open('lumo-mvp-account-'+window.__lumoUserId,1);req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains('data'))req.result.createObjectStore('data');};req.onerror=()=>reject(req.error);req.onsuccess=()=>resolve(req.result);});}
@@ -2387,7 +2391,7 @@ case'edit-item':{
 }
 case'price-quick-details':showModal('item-edit',{id:modalData.id});break;
 case'delete-item':showModal('confirm',{kind:'delete-item',id,title:'Excluir produto?',description:'Remover este item da lista?',button:'Excluir produto'});break;
-case'toggle-item':{const rect=el.getBoundingClientRect();let checked=false;lastAnimatedItemId=id;lastAnimationTime=Date.now();change(()=>{let i=state.items.find(x=>x.id===id);if(i){i.status=i.status==='bought'?'pending':'bought';checked=i.status==='bought';i.updatedAt=now();}});if(checked){burstAt(rect.left+rect.width/2,rect.top+rect.height/2);}break;}
+case'toggle-item':{const rect=el.getBoundingClientRect();let checked=false;lastAnimatedItemId=id;lastAnimationTime=Date.now();change(()=>{let i=state.items.find(x=>x.id===id);if(i){i.status=i.status==='bought'?'pending':'bought';checked=i.status==='bought';i.updatedAt=now();}});if(checked){confirmAt(rect.left+rect.width/2,rect.top+rect.height/2);}break;}
 case'paste-list':showModal('paste-list');break;
 case'voice-add':startVoice();break;
 case'scan-product':startScanner('product');break;
@@ -2498,7 +2502,7 @@ case'backup-export':exportBackup();break;
 case'backup-import':$('#file-backup')?.click();break;
 case'reset-all':showModal('confirm',{kind:'reset-all',title:'Apagar tudo?',description:'Isso apagará listas, itens, histórico, notas e configurações somente neste navegador.',button:'Apagar tudo'});break;
 } }catch(err){console.error(err);toast('Não foi possível completar esta ação: '+err.message);}}
-function finishOnboarding(){state.onboarded=true;state.theme=onboardDraft.theme;state.goal=onboardDraft.goal;state.settings={...state.settings,mascot:onboardDraft.mascot,accentColor:colorSafe(onboardDraft.accentColor)};const l={id:uid(),name:onboardDraft.listName||'Mercado do mês',icon:'🛒',createdAt:now(),updatedAt:now()};state.lists.push(l);state.activeListId=l.id;listId=l.id;save();view='list';render();burstAt(window.innerWidth/2,Math.min(window.innerHeight*.35,300),true);toast('Sua primeira lista está pronta!');void 0;}
+function finishOnboarding(){state.onboarded=true;state.theme=onboardDraft.theme;state.goal=onboardDraft.goal;state.settings={...state.settings,mascot:onboardDraft.mascot,accentColor:colorSafe(onboardDraft.accentColor)};const l={id:uid(),name:onboardDraft.listName||'Mercado do mês',icon:'🛒',createdAt:now(),updatedAt:now()};state.lists.push(l);state.activeListId=l.id;listId=l.id;save();view='list';render();confirmAt(window.innerWidth/2,Math.min(window.innerHeight*.35,300),true);toast('Sua primeira lista está pronta!');void 0;}
 async function handleForm(e){const form=e.target.closest('form[data-form]');if(!form)return;e.preventDefault();const type=form.dataset.form,x=getForm(form);try{switch(type){
 case'quick-add':{const quick=C.parseQuick(x.text);if(!quick){toast('Digite o nome de um produto.');return;}change(()=>{const added=addItem(quick);if(added){lastAnimatedItemId=added.item.id;lastAnimationTime=Date.now();}});form.reset();toast(quick.name+' entrou na lista!');void 0;break;}
 case'list-edit':{let newId=modalData.id;const name=String(x.name||'').trim();if(!name)return toast('Informe o nome da lista.');change(()=>{if(newId){Object.assign(state.lists.find(i=>i.id===newId),{name,icon:x.icon,updatedAt:now()});}else{newId=uid();state.lists.push({id:newId,name,icon:x.icon||'🛍️',createdAt:now(),updatedAt:now()});state.activeListId=newId;}});closeModal();go('list',{listId:newId});toast('Lista salva.');break;}
@@ -2569,7 +2573,7 @@ case'paste-confirm':{
  toast(count+' itens processados'+(merged?' · '+merged+' agrupados com itens já existentes':'')+'.');
  break;}
 
-case'finish':{let bought=activeItems().filter(i=>i.status==='bought');if(!bought.length)return toast('Marque ao menos um item no carrinho.');let p;change(()=>{const discount=C.toCents(x.discount);p={id:uid(),listId:activeList().id,store:x.store.trim(),date:x.date,payment:x.payment,note:x.note||'',discountCents:discount,totalCents:Math.max(0,C.listTotal(bought)-discount),items:C.clone(bought).map(i=>({...i,originalName:i.name,totalCents:C.lineTotal(i)})),createdAt:now(),receiptId:null};state.purchases.push(p);});closeModal();go('purchase-detail',{purchaseId:p.id});burstAt(window.innerWidth/2,Math.min(window.innerHeight*.38,340),true);toast('Compra guardada no histórico! 🧡');void 0;break;}
+case'finish':{let bought=activeItems().filter(i=>i.status==='bought');if(!bought.length)return toast('Marque ao menos um item no carrinho.');let p;change(()=>{const discount=C.toCents(x.discount);p={id:uid(),listId:activeList().id,store:x.store.trim(),date:x.date,payment:x.payment,note:x.note||'',discountCents:discount,totalCents:Math.max(0,C.listTotal(bought)-discount),items:C.clone(bought).map(i=>({...i,originalName:i.name,totalCents:C.lineTotal(i)})),createdAt:now(),receiptId:null};state.purchases.push(p);});closeModal();go('purchase-detail',{purchaseId:p.id});confirmAt(window.innerWidth/2,Math.min(window.innerHeight*.38,340),true);toast('Compra guardada no histórico! 🧡');void 0;break;}
 case'purchase-edit':{change(()=>{const p=state.purchases.find(i=>i.id===modalData.id);if(!p)return;Object.assign(p,{store:x.store.trim(),date:x.date,payment:x.payment,totalCents:C.toCents(x.total),discountCents:C.toCents(x.discount),note:x.note,updatedAt:now()});});closeModal();toast('Compra corrigida.');break;}
 case'purchase-item':{change(()=>{const p=state.purchases.find(i=>i.id===modalData.id),it=p?.items[Number(modalData.index)];if(!it)return;Object.assign(it,{name:x.name.trim(),qty:Number(x.qty),unit:x.unit,unitPriceCents:C.toCents(x.price),totalCents:C.toCents(x.total)});p.updatedAt=now();});closeModal();toast('Item corrigido. A nota original foi preservada.');break;}
 case'confirm':{const d=modalData;const kind=d.kind;change(()=>{if(kind==='delete-item')state.items=state.items.filter(i=>i.id!==d.id);if(kind==='delete-purchase')state.purchases=state.purchases.filter(p=>p.id!==d.id);if(kind==='delete-receipt'){state.receipts=state.receipts.filter(r=>r.id!==d.id);state.purchases.forEach(p=>{if(p.receiptId===d.id)p.receiptId=null;});}if(kind==='delete-list'){state.lists=state.lists.filter(l=>l.id!==d.id);state.items=state.items.filter(i=>i.listId!==d.id);state.activeListId=state.lists[0]?.id||null;listId=state.activeListId;}if(kind==='reset-list')state.items.filter(i=>i.listId===d.id).forEach(i=>{i.status='pending';});if(kind==='reset-all'){state=C.createInitial();state.onboarded=false;view='home';onboardStep=0;}});closeModal();if(kind==='delete-purchase')go('history');if(kind==='delete-receipt')go('note');if(kind==='delete-list')go('lists');toast('Alteração concluída.');break;}
