@@ -3,7 +3,8 @@ from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
 index = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
-css = (ROOT / "web" / "experience.css").read_text(encoding="utf-8")
+base_css = index.split("<style>", 1)[1].split("</style>", 1)[0]
+css = base_css + "\n" + (ROOT / "web" / "experience.css").read_text(encoding="utf-8")
 
 start = index.index('<div id="lumo-identity-gate"')
 end = index.index('<span id="lumo-cloud-status"', start)
