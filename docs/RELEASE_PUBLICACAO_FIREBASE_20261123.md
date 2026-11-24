@@ -51,3 +51,15 @@ A foto de um produto agora é invalidada quando o usuário altera o EAN ou muda 
 - **Catálogo central ainda pendente:** proposta RLS e filas privadas foram validadas apenas em transação revertida; não há escrita compartilhada nem agendamento ativo no Supabase.
 - **Licenciamento:** fornecedores abertos têm condições de reutilização e atribuição; o registro de origem deve acompanhar futuras republicações de fotos/metadados.
 
+
+## Correção de renderização do login — 23/11/2026
+
+Uma captura real no Galaxy Tab A11+ revelou que a página nova podia aparecer sem `experience.css`: mascote e textos fora da hierarquia, um SVG preto ampliado e o botão Google abaixo da tela. O teste de navegador anterior inseria artificialmente o CSS e não detectava a falha.
+
+**Solução publicada:** o CSS essencial da entrada e da colaboração foi incorporado a `web/index.html` como `<style id="lumo-entry-critical">`, mantendo `web/experience.css` como arquivo-fonte. O Service Worker ganhou novo cache `lumo-login-inline-css-v1-20261123` e já não depende do CSS externo para instalar o shell offline. O teste Chromium verifica a página HTML **sem injetar CSS**, comparando os estilos embutidos ao arquivo-fonte, cores calculadas, SVGs com dimensões limitadas e botão Google visível no S23, S25 FE e no tablet em diferentes orientações. O teste pós-publicação também valida o CSS computado em HTTPS, e não apenas o botão existir no DOM.
+
+- **GitHub Actions:** https://github.com/0tiagooliveira/Lumo/actions/runs/45299602224 — sucesso em testes, Firebase Hosting, SHA remoto e navegação anônima de celular/tablet.
+- **SHA de deploy:** `4e3ade29a73eb132a4264f5e1c65a7b2f098fa1b`.
+- **Domínio:** https://uselumo.web.app/
+- **Sem alterações:** migrações de banco, chaves privadas, autenticação Google e dados pessoais.
+
