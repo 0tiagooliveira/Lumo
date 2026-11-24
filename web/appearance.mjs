@@ -82,7 +82,8 @@ const accountKey=id=>'lumo_appearance_account_'+id+'_v1';
 const validColor=c=>/^#[a-f0-9]{6}$/i.test(String(c||''))?String(c).toUpperCase():'#F97316';
 const appearance=(value={})=>({
  mascot:mascotSafe(value?.mascot),accentColor:validColor(value?.accentColor),
- theme:value?.theme==='dark'?'dark':'light'
+ theme:value?.theme==='dark'?'dark':'light',
+ updatedAt:Number.isFinite(Date.parse(value?.updatedAt))?new Date(value.updatedAt).toISOString():null
 });
 const readKey=k=>{try{return appearance(JSON.parse(localStorage.getItem(k)||'{}'))}catch{return appearance()}};
 const writeKey=(k,p)=>{try{localStorage.setItem(k,JSON.stringify(p))}catch{}};
