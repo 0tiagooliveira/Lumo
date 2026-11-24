@@ -28,5 +28,7 @@ jobs:
       - run: python -m playwright install --with-deps chromium
       - name: Verify original MVP UX navigation in Chromium (offline synthetic)
         run: python tests/experience_navigation_static.py
+      - name: Verify responsive private login in Chromium
+        run: python tests/login_responsive.py
       - name: Verify Google login fallback in legacy cloud lab
         run: python tests/browser_smoke.py
