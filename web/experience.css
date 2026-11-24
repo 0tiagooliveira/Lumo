@@ -1,15 +1,11 @@
 /* The full v1.7 product UI is retained. Only private identity and collaboration surfaces are added. */
 body:not(.lumo-authenticated) #app{visibility:hidden;pointer-events:none}
 .lumo-gate{position:fixed;inset:0;z-index:900;background:#f7f5f0;display:grid;place-items:center;padding:25px;color:#211c18;}
-.lumo-gate[hidden],.lumo-cloud-dock[hidden]{display:none!important}
+.lumo-gate[hidden]{display:none!important}
 .lumo-gate-card{width:min(100%,430px);text-align:center;background:white;border:1px solid #efe8df;border-radius:36px;padding:34px 26px;box-shadow:0 12px 36px #39291112}
 .lumo-gate-logo{font-size:33px;font-weight:900;letter-spacing:-2px}.lumo-gate-logo span{color:#fe7c24}.lumo-gate-fruit{background:#ff922f;color:#fff;width:76px;height:76px;margin:26px auto;border-radius:25px;display:grid;place-items:center;font-size:49px}
 .lumo-gate h1{font-size:30px;letter-spacing:-1px;line-height:1.1;max-width:300px;margin:0 auto 13px}.lumo-gate p{font-size:14px;color:#77716c;line-height:1.5;margin-bottom:18px}.lumo-google-login{background:#1e1b18;color:#fff;border:0;padding:15px 25px;border-radius:17px;font-weight:750;width:100%;min-height:51px}
 .lumo-gate-hint{font-size:12px!important;margin-top:16px!important;margin-bottom:0!important}
-.lumo-cloud-dock{position:fixed;top:env(safe-area-inset-top,0px);left:50%;transform:translateX(-50%);z-index:101;display:flex;align-items:center;gap:8px;max-width:min(100%,560px);width:max-content;padding:6px 13px;border-radius:0 0 16px 16px;box-shadow:0 4px 13px #382c161c;border:1px solid #f4eadd;border-top:0;background:#ffffffed;color:#4e473f;font-size:11px}
-.lumo-cloud-dock button{padding:4px 7px;border:0;border-radius:9px;background:#f4f0e9;color:#322820;font-size:11px;font-weight:750}
-#lumo-cloud-status{color:#7b654c;white-space:nowrap;max-width:145px;overflow:hidden;text-overflow:ellipsis}
-body.lumo-authenticated .app-shell .main{padding-top:53px}
 .lumo-cloud-panel{max-width:min(96vw,470px);max-height:83dvh;width:440px;overflow:auto;border:1px solid #e9e2d8;border-radius:25px;padding:21px;background:#fff;color:#201c19;box-shadow:0 22px 70px #1d170f55}
 .lumo-cloud-panel::backdrop{background:#0f0c0a88}
 .lumo-panel-top{display:flex;align-items:center;justify-content:space-between;gap:12px}.lumo-panel-top strong{font-size:19px;letter-spacing:-.6px}.lumo-panel-top button{border:0;background:#f2eee8;border-radius:12px;padding:8px 12px;font-size:22px}
@@ -22,3 +18,17 @@ body.lumo-authenticated .app-shell .main{padding-top:53px}
 @media(prefers-reduced-motion:reduce){.lumo-gate *, .lumo-cloud-panel *{animation:none!important;transition:none!important}}
 
 .lumo-conflict{background:#fff4e9;border:1px solid #f0bc8c;border-radius:15px;padding:12px;margin:10px 0}.lumo-conflict strong{font-size:13px}.lumo-conflict p{font-size:12px!important;margin:6px 0!important}.lumo-conflict .lumo-conflict-actions{display:flex;gap:6px}.lumo-conflict button{font-size:12px;border:1px solid #dfb28d;background:#fff}.lumo-conflict button[data-cloud-choice="remote"]{background:#fdfbf8}.lumo-conflict button[data-cloud-choice="local"]{background:#1e1b17;color:#fff}
+
+/* 2026-11-23: login fluido; sem barra de nuvem sobre o conteúdo */
+html,body,#app{max-width:100%;min-width:0}
+.lumo-sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.lumo-gate{inset:0;width:100%;max-width:100vw;min-width:0;min-height:100dvh;overflow-x:hidden;overflow-y:auto;grid-template-columns:minmax(0,1fr);padding:clamp(16px,4vw,36px);background:var(--bg,#f7f5f0)}
+.lumo-gate-card{box-sizing:border-box;width:min(100%,450px);min-width:0;max-width:100%;margin:auto;padding:clamp(24px,5vw,42px);border-radius:28px;background:var(--surface,#fff);overflow-wrap:anywhere}
+.lumo-gate-logo{font-size:clamp(25px,3vw,31px);font-weight:750;letter-spacing:-.07em}
+.lumo-gate-fruit{width:76px;height:76px;margin:22px auto 25px;border-radius:24px;font-size:45px;line-height:1}
+.lumo-gate h1{font-size:clamp(27px,4.5vw,36px);font-weight:750;letter-spacing:-.04em;line-height:1.13;max-width:100%;text-wrap:balance}
+.lumo-gate p{font-size:clamp(13px,2.6vw,15px);max-width:33ch;margin:12px auto 23px}
+.lumo-google-login{display:block;width:100%;max-width:100%;white-space:normal;min-height:52px}
+.lumo-google-login[hidden]{display:none!important}
+@media(max-width:540px){.lumo-gate-card{border-radius:24px;padding:28px 23px}.lumo-gate{align-items:center}}
+@media(max-height:540px){.lumo-gate{place-items:start center}.lumo-gate-card{margin-block:0}}
