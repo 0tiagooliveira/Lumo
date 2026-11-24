@@ -2,11 +2,11 @@
 """Read only advertised public image-sitemap exports (no crawling product pages).
 Preserve external source URL and EAN; do not assume reuse permission.
 """
-import csv,gzip,io,json,re,urllib.request,urllib.error,xml.etree.ElementTree as ET
+import csv,gzip,io,json,re,time,urllib.request,urllib.error,xml.etree.ElementTree as ET
 from pathlib import Path
 from urllib.parse import urlparse
 UA="LumoResearch/1.0 (public sitemap image metadata only)"
-SOURCES=["https://www.precomelhor.com.br","https://global.si5.com.br","https://cadastroproduto.com.br"]
+SOURCES=["https://global.si5.com.br"]
 DEST=Path("sitemap_results");DEST.mkdir(exist_ok=True)
 MAX_BYTES=15000000
 def fetch(url):
@@ -57,7 +57,8 @@ def run():
                     info["sitemap_sources"].append({"url":path,"bytes":nbytes,"children":len(idx),"images":len(im)})
                     for row in im:
                         if row[0] in missing and row[0] not in found:found[row[0]]=row
-                    for child in idx[:3]:
+                    for child in idx[:31]:
+                        time.sleep(0.6)
                         try:
                             _,rows,b=child_images(child)
                             info["sitemap_sources"].append({"url":child,"bytes":b,"images":len(rows)})
