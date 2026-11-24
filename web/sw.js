@@ -1,4 +1,4 @@
-const CACHE = 'lumo-restore-v1-20261122';
+const CACHE = 'lumo-restore-v2-20261123';
 const CORE = ['./', './index.html', './experience.css', './experience-auth.mjs', './experience-sync.mjs', './experience-sync-core.mjs', './oauth.mjs', './config.js', './manifest.webmanifest'];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(CORE))));
 self.addEventListener('activate', event => event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(key => key !== CACHE).map(key => caches.delete(key))))));
