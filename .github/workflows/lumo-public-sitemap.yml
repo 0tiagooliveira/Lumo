@@ -1,0 +1,29 @@
+name: Lumo - conferir sitemaps públicos de imagens
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'tools/public_sitemap_photos.py'
+      - '.github/workflows/lumo-public-sitemap.yml'
+permissions:
+  contents: read
+jobs:
+  mapa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Baixar base e conferir sitemaps
+        run: |
+          mkdir -p input
+          curl -fLsS --retry 1 --max-time 40 'https://drive.usercontent.google.com/download?id=1Ks26k0VAdIuY0BIfalzMggzfSk3Ji8Zg&export=download&confirm=t' -o input/master.csv
+          python tools/public_sitemap_photos.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lumo-imagens-sitemaps
+          path: sitemap_results/
+          if-no-files-found: warn

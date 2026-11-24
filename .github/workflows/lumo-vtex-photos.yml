@@ -1,0 +1,36 @@
+name: Lumo - fotos EAN de catalogos varejistas VTEX
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/lumo-vtex-photos.yml'
+permissions:
+  contents: read
+jobs:
+  pesquisar-varejistas:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    env:
+      VTEX_MAX_PAGES: "30"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Baixar catalogo master atualizado e rotina auditada
+        run: |
+          mkdir -p input
+          curl -fLsS --retry 2 --max-time 60 'https://drive.usercontent.google.com/download?id=1Ks26k0VAdIuY0BIfalzMggzfSk3Ji8Zg&export=download&confirm=t' -o input/master.csv
+          curl -fLsS --retry 2 --max-time 60 'https://drive.usercontent.google.com/download?id=1hkafkGJMG8wRMxVr0BRHAY33BhCC8eWf&export=download&confirm=t' -o vtex_photo_enrichment.py
+          echo '15ae8e336695fbd61e7b65c214c4440bc1c0293821f9088b26cbe4ad7c589f82  vtex_photo_enrichment.py' | sha256sum -c -
+          python -m py_compile vtex_photo_enrichment.py
+      - name: Buscar imagens reais correspondentes aos EANs
+        run: python vtex_photo_enrichment.py
+      - name: Guardar resultados para revisao
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lumo-fotos-vtex
+          path: vtex_results/
+          if-no-files-found: warn
+          retention-days: 7
