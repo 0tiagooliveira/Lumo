@@ -56,8 +56,8 @@ async def main():
   await photo.evaluate("(img) => img.dispatchEvent(new Event('error'))")
   assert await page.locator('[data-item-id="photo-ean-check"] .item-icon span').count()==1, 'Failed image must return to contextual icon'
   await page.locator('[data-action="nav"][data-to="purchase"]').last.click()
-  assert await page.locator('[data-item-id="photo-ean-check"] img.item-photo').count()==1, 'Shopping mode must also show photo'
-  print('Trusted EAN image in list/purchase and safe fallback: PASS')
+  assert await page.locator('[data-item-id="photo-ean-check"] .item-icon span').count()==1, 'A known broken image URL must stay blocked after navigating'
+  print('Trusted EAN, broken image URL cache and safe fallback: PASS')
   # Changing a barcode changes product identity. The old packshot must
   # disappear or be replaced with the picture from the NEW matching GTIN.
   await page.locator('[data-action="nav"][data-to="list"]').last.click()
@@ -130,6 +130,13 @@ async def main():
   await page.locator('[data-action="nav"][data-to="purchase"]').last.click()
   await page.wait_for_timeout(150)
   assert await page.locator('body').get_attribute('data-screen')=='purchase'
+  # Marking one item now draws a single check, not a screen-wide confetti burst.
+  toggle=page.locator('[data-item-id="shared-photo-check"] [data-action="toggle-item"]')
+  await toggle.click()
+  assert await page.locator('.lumo-confirm-feedback .lumo-confirm-tick').count()==1, 'Item confirmation must be a focused check'
+  assert await page.locator('.fx-layer,.fx-particle').count()==0, 'Confetti must not be used'
+  assert await page.locator('[data-item-id="shared-photo-check"] .check-circle.checked').count()==1, 'Purchased item state should persist'
+  print('Single check confirmation without confetti: PASS')
   await page.locator('[data-action="nav"][data-to="history"]').last.click()
   await page.wait_for_timeout(80)
   assert await page.locator('body').get_attribute('data-screen')=='history'
