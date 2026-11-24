@@ -780,36 +780,7 @@ h1,h2,h3,h4,.display,.page-title,.hero h1,.onboard h1{font-weight:650!important;
       <p>Da cozinha ao mercado, cada item no seu lugar. E todo mundo na mesma página.</p>
     </div>
     <div class="lumo-gate-art" aria-hidden="true">
-      <svg class="lumo-gate-illustration" viewBox="0 0 440 285" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
-        <ellipse cx="234" cy="256" rx="128" ry="15" fill="#0b1426" opacity=".24"/>
-        <g class="lumo-gate-note">
-          <rect x="33" y="81" width="125" height="137" rx="20" transform="rotate(-12 33 81)" fill="#F9F9F3"/>
-          <rect x="60" y="117" width="13" height="13" rx="4" transform="rotate(-12 60 117)" fill="#FF983B"/>
-          <path d="m63 122 3 3 5-7" stroke="#182336" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-          <path d="m85 116 44-9M91 140l35-7M95 163l40-8" stroke="#A1A5A8" stroke-width="7" stroke-linecap="round"/>
-          <rect x="70" y="146" width="13" height="13" rx="4" transform="rotate(-12 70 146)" fill="#FFD5B1"/>
-        </g>
-        <g class="lumo-gate-orbit">
-          <circle cx="349" cy="65" r="27" fill="#F3FAE7"/>
-          <path d="M338 65h22m-11-11v22" stroke="#6FAD44" stroke-width="5" stroke-linecap="round"/>
-          <circle cx="113" cy="42" r="7" fill="#FFBB68"/>
-          <path d="m367 198 7 7 15-18" stroke="#A6D875" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-        </g>
-        <g class="lumo-gate-fruit">
-          <path d="M219 54c-3-22 12-40 34-37-2 23-16 36-34 37Z" fill="#88C65E"/>
-          <path d="M226 58c-5-16-18-25-36-24 5 19 17 29 36 24Z" fill="#6EA64D"/>
-          <path d="M222 61c-3-11-1-19 5-27" stroke="#396E39" stroke-width="6" stroke-linecap="round"/>
-          <path d="M334 156c0 72-51 113-111 113s-110-41-110-113C113 88 162 55 223 55s111 33 111 101Z" fill="#FFAC38"/>
-          <path d="M320 141c0 62-43 112-99 112s-99-50-99-112c0-62 43-78 99-78s99 16 99 78Z" fill="#FFB542"/>
-          <path d="M161 121c8-21 26-32 40-34" stroke="#FFE2A0" stroke-width="16" stroke-linecap="round" opacity=".85"/>
-          <ellipse cx="183" cy="165" rx="9" ry="13" fill="#202B32"/>
-          <ellipse cx="263" cy="165" rx="9" ry="13" fill="#202B32"/>
-          <circle cx="166" cy="189" r="15" fill="#FF8B78" opacity=".8"/>
-          <circle cx="280" cy="189" r="15" fill="#FF8B78" opacity=".8"/>
-          <path d="M208 196q15 17 30 0" stroke="#202B32" stroke-width="6" stroke-linecap="round"/>
-          <path d="M136 216q-22 9-27-4M311 216q20 5 25-11" stroke="#F39028" stroke-width="9" stroke-linecap="round"/>
-        </g>
-      </svg>
+      <div id="lumo-gate-hero-mascot" class="lumo-gate-hero-mascot" data-rendered-mascot="orange" aria-hidden="true"><span class="lumo-fruit-fallback">🍊</span></div>
     </div>
     <div class="lumo-gate-benefits" aria-label="O que você faz no Lumo">
       <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 12l3 3 5-6M4 4h16v16H4z"/></svg> Listas em família</span>
@@ -818,12 +789,21 @@ h1,h2,h3,h4,.display,.page-title,.hero h1,.onboard h1{font-weight:650!important;
   </section>
   <section class="lumo-gate-card" aria-labelledby="lumo-gate-enter-title">
     <div class="lumo-gate-entry">
-      <div class="lumo-gate-entry-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 3 1.6 6.6L20 12l-6.4 2.4L12 21l-1.6-6.6L4 12l6.4-2.4L12 3Z" fill="currentColor"/></svg></div>
+      <div id="lumo-gate-entry-mascot" class="lumo-gate-entry-symbol" aria-hidden="true"><span class="lumo-fruit-fallback">🍊</span></div>
       <h2 id="lumo-gate-enter-title">Entre para começar</h2>
       <p class="lumo-gate-description">Suas listas, seus produtos e quem compra com você. Tudo em um só lugar.</p>
       <p id="lumo-gate-message" role="status" aria-live="polite">Preparando seu espaço…</p>
       <button type="button" id="lumo-login-google" class="lumo-google-login" hidden><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.7 1.2 9.2 3.6l6.9-6.9C36 2.3 30.5 0 24 0 14.6 0 6.5 5.4 2.6 13.2l8 6.2c1.9-5.8 7.1-9.9 13.4-9.9Z"/><path fill="#4285F4" d="M46.9 24.5c0-1.6-.2-3.2-.5-4.8H24v9.1h12.8c-.6 3-2.3 5.5-4.9 7.2l7.6 5.9c4.5-4.2 7.4-10.4 7.4-17.4Z"/><path fill="#FBBC05" d="M10.6 28.6a14.5 14.5 0 0 1 0-9.2l-8-6.2a24 24 0 0 0 0 21.6l8-6.2Z"/><path fill="#34A853" d="M24 48c6.5 0 12-2.1 16-6.1L32 36c-2.2 1.5-4.9 2.4-8 2.4-6.3 0-11.5-4.1-13.4-9.8l-8 6.2C6.5 42.6 14.6 48 24 48Z"/></svg><span>Continuar com Google</span><span class="lumo-gate-button-end" aria-hidden="true">→</span></button>
-      <p class="lumo-gate-privacy">Suas listas só são compartilhadas quando você escolher.</p>
+      <p class="lumo-gate-privacy">Suas listas só são compartilhadas quando você escolher.</p><div class="lumo-gate-personalization">
+ <button type="button" id="lumo-gate-customize" class="lumo-gate-customize" aria-expanded="false" aria-controls="lumo-gate-custom-panel">Escolher minha cor e mascote <span aria-hidden="true">⌄</span></button>
+ <div id="lumo-gate-custom-panel" class="lumo-gate-custom-panel" hidden>
+  <p>Seu Lumo, suas escolhas. Você pode mudar depois.</p>
+  <div id="lumo-gate-mascot-options" role="group" aria-label="Mascote do Lumo"></div>
+  <div id="lumo-gate-color-options" role="group" aria-label="Cor do Lumo"></div>
+  <label class="lumo-gate-color-custom">Outra cor <input type="color" id="lumo-gate-color-input" value="#F97316" aria-label="Selecionar cor personalizada"></label>
+  <div class="lumo-gate-theme-options" role="group" aria-label="Aparência"><button type="button" data-lumo-theme="light">Claro</button><button type="button" data-lumo-theme="dark">Escuro</button></div>
+ </div>
+</div>
     </div>
     <footer class="lumo-gate-footer"><span>Seu espaço para organizar a casa.</span><span class="lumo-gate-footer-dot" aria-hidden="true"></span><span>Feito para o dia a dia.</span></footer>
   </section>
@@ -1581,6 +1561,11 @@ function applyBrandTheme(){
  root.setProperty('--accent-shadow',`color-mix(in srgb,${color} 26%,transparent)`);
  const meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.content=color;
  document.body.dataset.mascot=mascotSafe(state.onboarded?state.settings?.mascot:onboardDraft.mascot);
+ window.LumoAppearance?.updateFromApp({
+  mascot:mascotSafe(state.onboarded?state.settings?.mascot:onboardDraft.mascot),
+  accentColor:color,theme:state.onboarded?state.theme:onboardDraft.theme,
+  updatedAt:state.onboarded?state.settings?.appearanceUpdatedAt:null
+ },state.onboarded);
  let favicon=document.querySelector('link[rel="icon"]');
  if(!favicon){favicon=document.createElement('link');favicon.rel='icon';document.head.appendChild(favicon);}
  favicon.type='image/svg+xml';favicon.href='data:image/svg+xml,'+encodeURIComponent(mascot('favicon-mascot'));
@@ -1622,6 +1607,14 @@ async function load(){
  if(!Array.isArray(state.marketProducts))state.marketProducts=[];if(!Array.isArray(state.marketMappings))state.marketMappings=[];
  if(!state.catalogLookups||typeof state.catalogLookups!=='object')state.catalogLookups={};
  if(!state.marketMigrated){state.marketMappings=Cat.mergeEntries(state.marketMappings,state.muffatoMappings.map(m=>({...m,marketId:'muffato'})));state.marketMigrated=true;}
+ const preference=window.LumoAppearance?.forUser?.();
+ if(preference){
+  if(!state.onboarded){Object.assign(onboardDraft,{mascot:preference.mascot,accentColor:preference.accentColor,theme:preference.theme});}
+  else if(Date.parse(preference.updatedAt||'')>Date.parse(state.settings?.appearanceUpdatedAt||'')){
+   state.settings={...state.settings,mascot:preference.mascot,accentColor:preference.accentColor,appearanceUpdatedAt:preference.updatedAt};
+   state.theme=preference.theme;
+  }
+ }
  if(!state.settings)state.settings={};state.settings.mascot=mascotSafe(state.settings.mascot);
  state.settings.accentColor=colorSafe(state.settings.accentColor||B.color);
  if(!state.goal)state.goal='Organizar minhas compras';
@@ -2233,9 +2226,9 @@ case'muffato-accept':{
  save();render();toast('Identificação confirmada. Quantidade e valores da nota preservados.');break;}
 case'nav':go(el.dataset.to,{listId:el.dataset.listId});break;
 case'onboard-theme':onboardDraft.theme=el.dataset.value;render();break;
-case'mascot-select':{const selected=mascotSafe(el.dataset.value);if(state.onboarded)change(()=>state.settings.mascot=selected);else{onboardDraft.mascot=selected;render();}const f=FRUITS.find(x=>x.id===selected);toast(f.name+' entrou para o time! '+f.emoji);const selectedMascot=document.querySelector('.mascot-choice.selected .picker-mascot');selectedMascot?.closest('.mascot-choice')?.classList.add('fruit-choice-tapped');break;}
+case'mascot-select':{const selected=mascotSafe(el.dataset.value);if(state.onboarded)change(()=>{state.settings.mascot=selected;state.settings.appearanceUpdatedAt=now();});else{onboardDraft.mascot=selected;render();}const f=FRUITS.find(x=>x.id===selected);toast(f.name+' entrou para o time! '+f.emoji);const selectedMascot=document.querySelector('.mascot-choice.selected .picker-mascot');selectedMascot?.closest('.mascot-choice')?.classList.add('fruit-choice-tapped');break;}
 case'mascot-play':{mascotReact(el);break;}
-case'accent-color':{const selected=colorSafe(el.dataset.value);if(state.onboarded)change(()=>state.settings.accentColor=selected);else{onboardDraft.accentColor=selected;render();}break;}
+case'accent-color':{const selected=colorSafe(el.dataset.value);if(state.onboarded)change(()=>{state.settings.accentColor=selected;state.settings.appearanceUpdatedAt=now();});else{onboardDraft.accentColor=selected;render();}break;}
 case'onboard-goal':onboardDraft.goal=el.dataset.value;render();break;
 case'onboard-list':onboardDraft.listName=el.dataset.value;render();break;
 case'onboard-back':onboardStep=Math.max(0,onboardStep-1);render();break;
@@ -2364,7 +2357,7 @@ case'backup-export':exportBackup();break;
 case'backup-import':$('#file-backup')?.click();break;
 case'reset-all':showModal('confirm',{kind:'reset-all',title:'Apagar tudo?',description:'Isso apagará listas, itens, histórico, notas e configurações somente neste navegador.',button:'Apagar tudo'});break;
 } }catch(err){console.error(err);toast('Não foi possível completar esta ação: '+err.message);}}
-function finishOnboarding(){state.onboarded=true;state.theme=onboardDraft.theme;state.goal=onboardDraft.goal;state.settings={...state.settings,mascot:onboardDraft.mascot,accentColor:colorSafe(onboardDraft.accentColor)};const l={id:uid(),name:onboardDraft.listName||'Mercado do mês',icon:'🛒',createdAt:now(),updatedAt:now()};state.lists.push(l);state.activeListId=l.id;listId=l.id;save();view='list';render();burstAt(window.innerWidth/2,Math.min(window.innerHeight*.35,300),true);toast('Sua primeira lista está pronta!');void 0;}
+function finishOnboarding(){state.onboarded=true;state.theme=onboardDraft.theme;state.goal=onboardDraft.goal;state.settings={...state.settings,mascot:onboardDraft.mascot,accentColor:colorSafe(onboardDraft.accentColor),appearanceUpdatedAt:now()};const l={id:uid(),name:onboardDraft.listName||'Mercado do mês',icon:'🛒',createdAt:now(),updatedAt:now()};state.lists.push(l);state.activeListId=l.id;listId=l.id;save();view='list';render();burstAt(window.innerWidth/2,Math.min(window.innerHeight*.35,300),true);toast('Sua primeira lista está pronta!');void 0;}
 async function handleForm(e){const form=e.target.closest('form[data-form]');if(!form)return;e.preventDefault();const type=form.dataset.form,x=getForm(form);try{switch(type){
 case'quick-add':{const quick=C.parseQuick(x.text);if(!quick){toast('Digite o nome de um produto.');return;}change(()=>{const added=addItem(quick);if(added){lastAnimatedItemId=added.item.id;lastAnimationTime=Date.now();}});form.reset();toast(quick.name+' entrou na lista!');void 0;break;}
 case'list-edit':{let newId=modalData.id;const name=String(x.name||'').trim();if(!name)return toast('Informe o nome da lista.');change(()=>{if(newId){Object.assign(state.lists.find(i=>i.id===newId),{name,icon:x.icon,updatedAt:now()});}else{newId=uid();state.lists.push({id:newId,name,icon:x.icon||'🛍️',createdAt:now(),updatedAt:now()});state.activeListId=newId;}});closeModal();go('list',{listId:newId});toast('Lista salva.');break;}
