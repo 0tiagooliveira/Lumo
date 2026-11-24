@@ -9,7 +9,6 @@ const AUTH_KEY='lumo_beta_auth_v1';
 const gate=document.getElementById('lumo-identity-gate');
 const text=document.getElementById('lumo-gate-message');
 const googleButton=document.getElementById('lumo-login-google');
-const dock=document.getElementById('lumo-cloud-dock');
 const status=document.getElementById('lumo-cloud-status');
 const $=id=>document.getElementById(id);
 let session=null;
@@ -79,11 +78,18 @@ async function signOut(){
  if(access&&navigator.onLine)fetch(`${SUPABASE_URL}/auth/v1/logout`,{method:'POST',headers:authHeaders(access),cache:'no-store'}).catch(()=>{});
  location.replace(oauthRedirect(location));
 }
-$('lumo-cloud-logout').addEventListener('click',()=>{void signOut()});
 const panel=$('lumo-cloud-panel');
-$('lumo-cloud-open').addEventListener('click',()=>{cloud?.refreshPanel();panel.showModal()});
+function openCloudPanel(){
+  if(!cloud)return;
+  cloud.refreshPanel();
+  if(!panel.open)panel.showModal();
+}
+document.addEventListener('click',event=>{
+  if(event.target.closest('[data-lumo-open-cloud]')){openCloudPanel();return;}
+  if(event.target.closest('[data-lumo-logout]'))void signOut();
+});
 $('lumo-cloud-close').addEventListener('click',()=>panel.close());
-window.addEventListener('lumo:share',()=>{cloud?.refreshPanel();panel.showModal()});
+window.addEventListener('lumo:share',openCloudPanel);
 
 async function init(){
  const invitation=preserveInviteFromUrl({url:location.href,storage:sessionStorage});
@@ -98,7 +104,7 @@ async function init(){
   window.__lumoSession={get:()=>session,request,rpc,refresh:async()=>{session=await refresh(session);return session}};
   status.textContent=navigator.onLine?'Listas locais • conectar nuvem':'Offline • somente neste aparelho';
   window.addEventListener('lumo:legacy-loaded',()=>{
-   document.body.classList.add('lumo-authenticated');gate.hidden=true;dock.hidden=false;
+   document.body.classList.add('lumo-authenticated');gate.hidden=true;
    cloud=attachCloudSync({legacy:window.LumoLegacy,account:session.user.id,session:window.__lumoSession,status,panel});
    void cloud.start();
   },{once:true});
