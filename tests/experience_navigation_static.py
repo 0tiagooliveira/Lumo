@@ -7,7 +7,9 @@ from tempfile import gettempdir
 from playwright.async_api import async_playwright
 HTML=(Path(__file__).resolve().parents[1]/'web/index.html').read_text()
 HTML=HTML.replace('<script type="module" src="./experience-auth.mjs"></script>','').replace('<link rel="stylesheet" href="./experience.css">','')
-HTML=HTML.replace('<body>','<body><style>body #lumo-identity-gate{display:none}body #app{visibility:visible}</style>',1)
+# This fixture stands in for a completed Google login. Real CSS is embedded
+# in the document, so use the same authenticated body class as production.
+HTML=HTML.replace('<body>','<body class="lumo-authenticated"><style>body #lumo-identity-gate{display:none!important}body #app{visibility:visible!important}</style>',1)
 
 async def main():
  async with async_playwright() as p:
