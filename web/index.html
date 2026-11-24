@@ -769,7 +769,65 @@ h1,h2,h3,h4,.display,.page-title,.hero h1,.onboard h1{font-weight:650!important;
 .list-icon-face{background:var(--surface);border-width:1px;box-shadow:0 3px 12px rgba(0,0,0,.025)}
 .list-icon-option input:checked+.list-icon-face{border-width:2px}
 </style><title>Lumo</title><link rel="stylesheet" href="./experience.css"></head><body><div id="lumo-identity-gate" class="lumo-gate" role="region" aria-label="Entrar no Lumo">
-<div class="lumo-gate-card"><div class="lumo-gate-logo">lumo<span>.</span></div><div class="lumo-gate-fruit" aria-hidden="true">✳</div><h1>Suas compras, do seu jeito.</h1><p id="lumo-gate-message">Preparando seu espaço privado…</p><button type="button" id="lumo-login-google" class="lumo-google-login" hidden>Continuar com Google</button><p class="lumo-gate-hint">Navegação, mascotes, listas, scanner e histórico preservados do MVP.</p></div></div><div id="lumo-cloud-dock" class="lumo-cloud-dock" hidden><button id="lumo-cloud-open" type="button" aria-haspopup="dialog">Nuvem e convites</button><span id="lumo-cloud-status" role="status" aria-live="polite">Dados locais</span><button id="lumo-cloud-logout" type="button">Sair</button></div><dialog id="lumo-cloud-panel" class="lumo-cloud-panel" aria-label="Listas compartilhadas"><div class="lumo-panel-top"><strong>Compartilhar com segurança</strong><button id="lumo-cloud-close" type="button" aria-label="Fechar">×</button></div><p id="lumo-cloud-desc">As listas só são compartilhadas após sua confirmação. Notas, histórico e fotos permanecem locais nesta etapa.</p><div id="lumo-cloud-current" class="lumo-current-list"></div><button id="lumo-cloud-activate" class="lumo-cloud-primary" type="button">Conectar esta lista</button><button id="lumo-cloud-create-invite" class="lumo-cloud-secondary" type="button" hidden>Criar convite de 24 horas</button><button id="lumo-cloud-share-text" class="lumo-cloud-secondary" type="button">Compartilhar como texto</button><div class="lumo-invite-line"><label for="lumo-invite-input">Recebeu um convite?</label><input id="lumo-invite-input" autocomplete="off" placeholder="Cole o código ou link do convite"><button id="lumo-cloud-redeem" type="button">Aceitar</button></div><div id="lumo-cloud-conflicts" aria-live="polite"></div><button id="lumo-cloud-refresh" class="lumo-cloud-secondary" type="button">Buscar alterações</button><p class="lumo-cloud-warning" id="lumo-cloud-warning" role="status">O scanner e o histórico continuam no seu aparelho até a próxima etapa da integração.</p></dialog><div id="app" role="application" aria-label="Aplicativo de compras"><div class="boot"><span class="boot-orb">●</span><p>Preparando suas compras...</p></div></div><div id="toast" role="status" aria-live="polite"></div><script>
+<div class="lumo-gate-shell">
+  <section class="lumo-gate-story" aria-labelledby="lumo-gate-title">
+    <header class="lumo-gate-header">
+      <div class="lumo-gate-logo" aria-label="Lumo">lumo<span>.</span></div>
+      <span class="lumo-gate-header-note">Compras mais leves, juntos.</span>
+    </header>
+    <div class="lumo-gate-intro">
+      <h1 id="lumo-gate-title">Sua lista.<br><span>Todo mundo junto.</span></h1>
+      <p>Da cozinha ao mercado, cada item no seu lugar. E todo mundo na mesma página.</p>
+    </div>
+    <div class="lumo-gate-art" aria-hidden="true">
+      <svg class="lumo-gate-illustration" viewBox="0 0 440 285" fill="none" xmlns="http://www.w3.org/2000/svg" focusable="false">
+        <ellipse cx="234" cy="256" rx="128" ry="15" fill="#0b1426" opacity=".24"/>
+        <g class="lumo-gate-note">
+          <rect x="33" y="81" width="125" height="137" rx="20" transform="rotate(-12 33 81)" fill="#F9F9F3"/>
+          <rect x="60" y="117" width="13" height="13" rx="4" transform="rotate(-12 60 117)" fill="#FF983B"/>
+          <path d="m63 122 3 3 5-7" stroke="#182336" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="m85 116 44-9M91 140l35-7M95 163l40-8" stroke="#A1A5A8" stroke-width="7" stroke-linecap="round"/>
+          <rect x="70" y="146" width="13" height="13" rx="4" transform="rotate(-12 70 146)" fill="#FFD5B1"/>
+        </g>
+        <g class="lumo-gate-orbit">
+          <circle cx="349" cy="65" r="27" fill="#F3FAE7"/>
+          <path d="M338 65h22m-11-11v22" stroke="#6FAD44" stroke-width="5" stroke-linecap="round"/>
+          <circle cx="113" cy="42" r="7" fill="#FFBB68"/>
+          <path d="m367 198 7 7 15-18" stroke="#A6D875" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+        </g>
+        <g class="lumo-gate-fruit">
+          <path d="M219 54c-3-22 12-40 34-37-2 23-16 36-34 37Z" fill="#88C65E"/>
+          <path d="M226 58c-5-16-18-25-36-24 5 19 17 29 36 24Z" fill="#6EA64D"/>
+          <path d="M222 61c-3-11-1-19 5-27" stroke="#396E39" stroke-width="6" stroke-linecap="round"/>
+          <path d="M334 156c0 72-51 113-111 113s-110-41-110-113C113 88 162 55 223 55s111 33 111 101Z" fill="#FFAC38"/>
+          <path d="M320 141c0 62-43 112-99 112s-99-50-99-112c0-62 43-78 99-78s99 16 99 78Z" fill="#FFB542"/>
+          <path d="M161 121c8-21 26-32 40-34" stroke="#FFE2A0" stroke-width="16" stroke-linecap="round" opacity=".85"/>
+          <ellipse cx="183" cy="165" rx="9" ry="13" fill="#202B32"/>
+          <ellipse cx="263" cy="165" rx="9" ry="13" fill="#202B32"/>
+          <circle cx="166" cy="189" r="15" fill="#FF8B78" opacity=".8"/>
+          <circle cx="280" cy="189" r="15" fill="#FF8B78" opacity=".8"/>
+          <path d="M208 196q15 17 30 0" stroke="#202B32" stroke-width="6" stroke-linecap="round"/>
+          <path d="M136 216q-22 9-27-4M311 216q20 5 25-11" stroke="#F39028" stroke-width="9" stroke-linecap="round"/>
+        </g>
+      </svg>
+    </div>
+    <div class="lumo-gate-benefits" aria-label="O que você faz no Lumo">
+      <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 12l3 3 5-6M4 4h16v16H4z"/></svg> Listas em família</span>
+      <span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M7 4v6M17 4v6M5 11h14v9H5z"/></svg> Do planejamento à compra</span>
+    </div>
+  </section>
+  <section class="lumo-gate-card" aria-labelledby="lumo-gate-enter-title">
+    <div class="lumo-gate-entry">
+      <div class="lumo-gate-entry-symbol" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 3 1.6 6.6L20 12l-6.4 2.4L12 21l-1.6-6.6L4 12l6.4-2.4L12 3Z" fill="currentColor"/></svg></div>
+      <h2 id="lumo-gate-enter-title">Entre para começar</h2>
+      <p class="lumo-gate-description">Suas listas, seus produtos e quem compra com você. Tudo em um só lugar.</p>
+      <p id="lumo-gate-message" role="status" aria-live="polite">Preparando seu espaço…</p>
+      <button type="button" id="lumo-login-google" class="lumo-google-login" hidden><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.7 1.2 9.2 3.6l6.9-6.9C36 2.3 30.5 0 24 0 14.6 0 6.5 5.4 2.6 13.2l8 6.2c1.9-5.8 7.1-9.9 13.4-9.9Z"/><path fill="#4285F4" d="M46.9 24.5c0-1.6-.2-3.2-.5-4.8H24v9.1h12.8c-.6 3-2.3 5.5-4.9 7.2l7.6 5.9c4.5-4.2 7.4-10.4 7.4-17.4Z"/><path fill="#FBBC05" d="M10.6 28.6a14.5 14.5 0 0 1 0-9.2l-8-6.2a24 24 0 0 0 0 21.6l8-6.2Z"/><path fill="#34A853" d="M24 48c6.5 0 12-2.1 16-6.1L32 36c-2.2 1.5-4.9 2.4-8 2.4-6.3 0-11.5-4.1-13.4-9.8l-8 6.2C6.5 42.6 14.6 48 24 48Z"/></svg><span>Continuar com Google</span><span class="lumo-gate-button-end" aria-hidden="true">→</span></button>
+      <p class="lumo-gate-privacy">Suas listas só são compartilhadas quando você escolher.</p>
+    </div>
+    <footer class="lumo-gate-footer"><span>Seu espaço para organizar a casa.</span><span class="lumo-gate-footer-dot" aria-hidden="true"></span><span>Feito para o dia a dia.</span></footer>
+  </section>
+</div></div><div id="lumo-cloud-dock" class="lumo-cloud-dock" hidden><button id="lumo-cloud-open" type="button" aria-haspopup="dialog">Nuvem e convites</button><span id="lumo-cloud-status" role="status" aria-live="polite">Dados locais</span><button id="lumo-cloud-logout" type="button">Sair</button></div><dialog id="lumo-cloud-panel" class="lumo-cloud-panel" aria-label="Listas compartilhadas"><div class="lumo-panel-top"><strong>Compartilhar com segurança</strong><button id="lumo-cloud-close" type="button" aria-label="Fechar">×</button></div><p id="lumo-cloud-desc">As listas só são compartilhadas após sua confirmação. Notas, histórico e fotos permanecem locais nesta etapa.</p><div id="lumo-cloud-current" class="lumo-current-list"></div><button id="lumo-cloud-activate" class="lumo-cloud-primary" type="button">Conectar esta lista</button><button id="lumo-cloud-create-invite" class="lumo-cloud-secondary" type="button" hidden>Criar convite de 24 horas</button><button id="lumo-cloud-share-text" class="lumo-cloud-secondary" type="button">Compartilhar como texto</button><div class="lumo-invite-line"><label for="lumo-invite-input">Recebeu um convite?</label><input id="lumo-invite-input" autocomplete="off" placeholder="Cole o código ou link do convite"><button id="lumo-cloud-redeem" type="button">Aceitar</button></div><div id="lumo-cloud-conflicts" aria-live="polite"></div><button id="lumo-cloud-refresh" class="lumo-cloud-secondary" type="button">Buscar alterações</button><p class="lumo-cloud-warning" id="lumo-cloud-warning" role="status">O scanner e o histórico continuam no seu aparelho até a próxima etapa da integração.</p></dialog><div id="app" role="application" aria-label="Aplicativo de compras"><div class="boot"><span class="boot-orb">●</span><p>Preparando suas compras...</p></div></div><div id="toast" role="status" aria-live="polite"></div><script>
 /* Altere somente este arquivo quando escolher o nome definitivo. */
 window.APP_BRANDING = Object.freeze({
   name: 'Lumo',
