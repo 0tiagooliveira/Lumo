@@ -9,6 +9,9 @@ export function attachCloudSync({legacy,account,session,status,panel}){
  const storageKey=`lumo-experience-sync-${account}`;
  let cloud=safeReadState(localStorage.getItem(storageKey));
  let running=false,debounce=null,interval=null,stopped=false;
+ // An empty successful RLS query can mean a list was revoked or archived.
+ // Never interpret this as a remote deletion or a completed sync.
+ let inaccessibleRemoteLists=new Set();
  const $=id=>document.getElementById(id);
  const notice=$('lumo-cloud-warning');
  const persist=()=>{try{localStorage.setItem(storageKey,JSON.stringify(cloud))}catch{message('Não foi possível guardar o estado da sincronização. Interrompa e exporte seu backup.');throw Error('Armazenamento local indisponível.')}};
@@ -22,6 +25,7 @@ export function attachCloudSync({legacy,account,session,status,panel}){
  const report=()=>{
   const count=Object.keys(cloud.lists).length;
   if(!navigator.onLine)status.textContent='Offline • alterações locais';
+  else if(inaccessibleRemoteLists.size)status.textContent=`${inaccessibleRemoteLists.size} lista(s) sem acesso à nuvem • dados locais preservados`;
   else if(cloud.conflicts.length)status.textContent=`${cloud.conflicts.length} conflito(s)`;
   else if(cloud.pending.length)status.textContent=`${cloud.pending.length} alteração(ões) pendente(s)`;
   else status.textContent=count?`${count} lista(s) na nuvem; histórico local`:'Listas locais • conectar nuvem';
@@ -35,7 +39,8 @@ export function attachCloudSync({legacy,account,session,status,panel}){
   $('lumo-cloud-activate').hidden=!list||connected;
   $('lumo-cloud-create-invite').hidden=!connected;
   $('lumo-cloud-create-invite').disabled=!navigator.onLine;
-  if(connected)$('lumo-cloud-desc').textContent='Esta lista tem sincronização de itens e quantidades no Supabase. Fotos, documentos fiscais e histórico permanecem locais nesta etapa.';
+  if(connected&&inaccessibleRemoteLists.has(mapped(id)))$('lumo-cloud-desc').textContent='O acesso a esta lista na nuvem está indisponível. Seus itens locais foram preservados. Verifique se o convite ou a permissão foi revogado antes de tentar novamente.';
+  else if(connected)$('lumo-cloud-desc').textContent='Esta lista tem sincronização de itens e quantidades no Supabase. Fotos, documentos fiscais e histórico permanecem locais nesta etapa.';
   else $('lumo-cloud-desc').textContent='Escolha uma lista e confirme para compartilhar apenas seus itens. Não enviaremos notas fiscais, fotos ou histórico.';
   const n=cloud.pending.length,c=cloud.conflicts.length;
   const conflictText=c?`${c} conflito(s) exigem revisão. Suas alterações não foram descartadas.`:'';
@@ -69,6 +74,7 @@ export function attachCloudSync({legacy,account,session,status,panel}){
  async function applyQueue(){
   for(const op of [...cloud.pending].sort((a,b)=>a.createdAt-b.createdAt)){
    if(!navigator.onLine)break;
+   if(inaccessibleRemoteLists.has(op.remoteListId))continue; // preserve the queued draft, do not replay after access loss.
    try{
     const result=await rpc('lumo_apply_item',{p_list:op.remoteListId,p_op:op.operation_id,p_action:op.action,p_item:op.remoteItemId,p_payload:op.payload,p_expected:op.expected_revision});
     if(result?.status==='conflict'){
@@ -152,7 +158,7 @@ export function attachCloudSync({legacy,account,session,status,panel}){
      if(signature===cloudSignature(server)){saveShadow(remoteListId,local.id,server);continue;}
      cloud.conflicts.push({localListId,remoteListId,localItemId:local.id,server,error:'Edição simultânea; alterações locais preservadas.'});persist();continue;
     }
-    if(shadow.deleted){createPending(localListId,local.id,'restore',{},shadow.revision);continue;}
+    if(shadow.deleted){createPending(localListId,local.id,'restore',itemPayload(local),shadow.revision);continue;}
     createPending(localListId,local.id,'edit',itemPayload(local),shadow.revision);
    }else if(server&&Number(server.revision)!==Number(shadow.revision)){
     syncUpdates.push({localId:local.id,row:server});syncShadows.push({localId:local.id,row:server});
@@ -194,15 +200,19 @@ export function attachCloudSync({legacy,account,session,status,panel}){
   try{
    await legacy.waitForLocalSave?.();
    const rows=await listRows();
+   const visible=new Set(rows.map(row=>row.id));
+   inaccessibleRemoteLists=new Set(Object.values(cloud.lists).filter(id=>!visible.has(id)));
    await mergeRemoteLists(rows);
    for(const [localId,remoteId] of Object.entries(cloud.lists)){
-    if(!localState().lists.find(l=>l.id===localId))continue;
+    if(inaccessibleRemoteLists.has(remoteId)||!localState().lists.find(l=>l.id===localId))continue;
     await reconcileList(localId,remoteId);
    }
    await applyQueue();
    // Read new ACKs and changes made on another phone after all writes.
    if(!cloud.pending.length&&!cloud.conflicts.length){
-    for(const [localId,remoteId] of Object.entries(cloud.lists))await reconcileList(localId,remoteId);
+    for(const [localId,remoteId] of Object.entries(cloud.lists)){
+     if(!inaccessibleRemoteLists.has(remoteId))await reconcileList(localId,remoteId);
+    }
    }
   }catch(err){message('Não foi possível atualizar a nuvem. Seus dados locais permanecem no aparelho. '+(err.message||''));}
   finally{running=false;report()}
@@ -238,17 +248,47 @@ export function attachCloudSync({legacy,account,session,status,panel}){
     else if(current)Object.assign(current,{...fromCloud(server,localListId),id:localItemId,details:current.details,category:current.category});
     else state.items.push({...fromCloud(server,localListId),id:localItemId});
    });
-   saveShadow(remoteListId,localItemId,server);
+   // Resolver um conflito também é uma atualização recebida da nuvem:
+   // somente confirme o shadow depois que a escrita local for durável.
+   try{
+    await legacy.waitForLocalSave?.();
+    saveShadow(remoteListId,localItemId,server);
+   }catch(err){
+    message('Não foi possível salvar a versão da nuvem neste aparelho. O conflito foi mantido para tentar novamente. '+(err?.message||''));
+    report();
+    return;
+   }
   }else if(choice==='local'){
-   // A new operation ID is required after the user explicitly approves retrying
-   // against the current server revision; never mutate or reuse the rejected op.
-   const local=localState().items.find(x=>x.id===localItemId&&x.listId===localListId);
-   if(!local){message('Item não encontrado neste aparelho.');return;}
-   saveShadow(remoteListId,localItemId,server);
-   cloud.conflicts.splice(index,1);persist();
-   try{createPending(localListId,localItemId,server.deleted_at?'restore':'edit',server.deleted_at?{}:itemPayload(local),server.revision)}
-   catch(err){message(err.message);return}
-   report();void syncOnce();return;
+   // The user explicitly chose to reapply a local edit. Commit the shadow,
+   // removal of the old conflict and the replacement operation in ONE durable
+   // localStorage write. A crash or quota error must leave the original
+   // conflict available for retry, never a half-acknowledged edit.
+   let local,payload,remoteItemId;
+   try{
+    await legacy.waitForLocalSave?.();
+    local=localState().items.find(x=>x.id===localItemId&&x.listId===localListId);
+    if(!local)throw Error('Item não encontrado neste aparelho.');
+    payload=itemPayload(local);
+    remoteItemId=cloud.items[localItemId]||(UUID.test(localItemId)?localItemId:crypto.randomUUID());
+   }catch(err){message('Sua edição continua em conflito: '+(err?.message||''));return;}
+   if(cloud.pending.some(p=>p.localItemId===localItemId&&p.remoteListId===remoteListId)){
+    message('Já existe uma operação pendente para este item.');return;
+   }
+   const next={...cloud,items:{...cloud.items},shadow:{...cloud.shadow},
+    conflicts:cloud.conflicts.filter((_,i)=>i!==index),pending:[...cloud.pending]};
+   next.items[localItemId]=remoteItemId;
+   next.shadow[keyFor(remoteListId,localItemId)]={
+    revision:Number(server.revision),signature:cloudSignature(server),deleted:!!server.deleted_at
+   };
+   next.pending.push({operation_id:crypto.randomUUID(),localListId,remoteListId,localItemId,
+    remoteItemId,action:server.deleted_at?'restore':'edit',payload,
+    expected_revision:Number(server.revision),createdAt:Date.now()});
+   try{localStorage.setItem(storageKey,JSON.stringify(next));}
+   catch(err){
+    message('Sem espaço para guardar a tentativa. O conflito foi preservado; exporte um backup e libere armazenamento. '+(err?.message||''));
+    return;
+   }
+   cloud=next;report();void syncOnce();return;
   }else return;
   cloud.conflicts.splice(index,1);persist();report();message(choice==='remote'?'Versão da nuvem aplicada somente neste item.':'Sua edição foi enviada para revisão.');
  }

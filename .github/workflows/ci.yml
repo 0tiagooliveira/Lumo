@@ -28,5 +28,74 @@ jobs:
       - run: python -m playwright install --with-deps chromium
       - name: Verify original MVP UX navigation in Chromium (offline synthetic)
         run: python tests/experience_navigation_static.py
+      - name: Verify responsive Lumo login on Galaxy S23, S25 FE and Tab A11+
+        run: python tests/login_responsive_static.py
       - name: Verify Google login fallback in legacy cloud lab
         run: python tests/browser_smoke.py
+
+  database-contract:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci_only_disposable_database
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: ci_only_disposable_database
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install PostgreSQL client (ephemeral CI environment)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq postgresql-client
+      - name: Create isolated fake Supabase Auth roles
+        run: psql -X -v ON_ERROR_STOP=1 -f tests/postgres_bootstrap.sql
+      - name: Apply baseline Lumo database schemas in disposable PostgreSQL
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20261122182007_lumo_beta_privada_foundation.sql
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20261122192056_lumo_cloud_list_compat_and_tombstones.sql
+      - name: Execute real SQL/RLS regression with mandatory ROLLBACK
+        run: psql -X -v ON_ERROR_STOP=1 -v lumo_test_approved=1 -f tests/supabase_rpc_rollback.sql
+
+      - name: Prepare isolated HTTP data API fixture
+        run: |
+          psql -X -v ON_ERROR_STOP=1 -f supabase/migrations/20261123010741_lumo_preserve_item_initial_state.sql
+          psql -X -v ON_ERROR_STOP=1 -f tests/postgrest_bootstrap.sql
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Launch PostgREST with disposable JWT key
+        run: |
+          set -euo pipefail
+          key="$(openssl rand -hex 48)"
+          echo "::add-mask::$key"
+          echo "LUMO_TEST_JWT_SECRET=$key" >> "$GITHUB_ENV"
+          echo "LUMO_TEST_REST_URL=http://127.0.0.1:3005" >> "$GITHUB_ENV"
+          echo "LUMO_TEST_DISPOSABLE_DB=yes" >> "$GITHUB_ENV"
+          docker run --detach --name lumo-test-rest --network host \
+            -e PGRST_DB_URI="postgres://lumo_rest_authenticator:local_disposable_ci_password@127.0.0.1:5432/postgres" \
+            -e PGRST_DB_SCHEMAS=public -e PGRST_DB_ANON_ROLE=anon \
+            -e PGRST_SERVER_PORT=3005 -e PGRST_JWT_SECRET="$key" \
+            postgrest/postgrest:v12.2.12
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3005/ > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs lumo-test-rest
+          exit 1
+      - name: Verify JWT authorization and real HTTP sync contract
+        run: node --test tests/rest_http_contract.test.mjs
+      - name: Shut down disposable REST API
+        if: always()
+        run: docker rm --force lumo-test-rest || true

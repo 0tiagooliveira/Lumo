@@ -61,7 +61,7 @@ function fakeDom(){const elements=new Map();const get=id=>elements.get(id)||(ele
 const accountStores=new Map();
 function setup(user,db,list=[],items=[],options={}){
  const doc=fakeDom();globalThis.document=doc;globalThis.window=new EventTarget();globalThis.location={origin:'https://lumo-preview.example',pathname:'/'};
- const store=accountStores.get(user)||new Map();accountStores.set(user,store);globalThis.localStorage={getItem:k=>store.get(k)||null,setItem:(k,v)=>store.set(k,v),removeItem:k=>store.delete(k)};
+ const store=accountStores.get(user)||new Map();accountStores.set(user,store);globalThis.localStorage={getItem:k=>store.get(k)||null,setItem:(k,v)=>{if(options.rejectCloudWrite?.(k,v))throw Error('armazenamento indisponível');store.set(k,v)},removeItem:k=>store.delete(k)};
  globalThis.sessionStorage={getItem:k=>store.get('ss:'+k)||null,setItem:(k,v)=>store.set('ss:'+k,v),removeItem:k=>store.delete('ss:'+k)};
  Object.defineProperty(globalThis,'navigator',{configurable:true,value:{onLine:true,clipboard:{writeText:async txt=>{db.clipboard=txt}}}});
  const state={lists:structuredClone(list),items:structuredClone(items)};
@@ -174,4 +174,186 @@ test('falha ao salvar lista compartilhada não registra mapa remoto antes da hor
  await sleep(85);
  assert.equal(recovery.state.lists.length,1,'Lista recebida novamente após reiniciar');
  recovery.stop();
+});
+
+
+test('resolver conflito remoto aguarda salvamento local e conserva conflito após falha',async()=>{
+ const user='00000000-0000-4000-8000-000000000719';
+ const listId='10000000-0000-4000-8000-000000000719';
+ const itemId='20000000-0000-4000-8000-000000000719';
+ const db=new FakeDB();let failSave=false;
+ const a=setup(user,db,[{id:listId,name:'Mercado'}],
+  [{id:itemId,listId,name:'Feijão',qty:1,unit:'un',unitPriceCents:800,status:'pending',barcode:''}],
+  {saveCheck:()=>failSave?Promise.reject(Error('falha simulada de IndexedDB')):Promise.resolve()});
+ await sleep(20);a.doc.get('lumo-cloud-activate').fire();await sleep(130);
+ const key='lumo-experience-sync-'+user,shadowKey=listId+':'+itemId;
+ const read=()=>JSON.parse(accountStores.get(user).get(key));
+ assert.equal(read().shadow[shadowKey].revision,1,'Original was confirmed locally');
+ db.items.set(itemId,{...db.items.get(itemId),quantity:2,revision:2,updated_at:new Date().toISOString()});
+ a.state.items[0].qty=3;
+ await a.sync.syncOnce();
+ assert.equal(read().conflicts.length,1,'Concurrent edit created a reviewable conflict');
+ const clickRemote=()=>a.doc.get('lumo-cloud-conflicts').handlers.click({
+  target:{closest:()=>({dataset:{cloudChoice:'remote',cloudIndex:'0'}})}
+ });
+ failSave=true;clickRemote();await sleep(25);
+ assert.equal(read().shadow[shadowKey].revision,1,'Failed local write must not ACK remote revision');
+ assert.equal(read().conflicts.length,1,'Conflict remains available for retry');
+ failSave=false;clickRemote();await sleep(25);
+ assert.equal(read().shadow[shadowKey].revision,2,'Revision confirmed after successful local write');
+ assert.equal(read().conflicts.length,0,'Conflict cleared only after durable local write');
+ a.stop();
+});
+
+
+test('lista recém compartilhada preserva estados iniciais no segundo celular',async()=>{
+ const owner='00000000-0000-4000-8000-000000000720';
+ const guest='00000000-0000-4000-8000-000000000721';
+ const listId='10000000-0000-4000-8000-000000000720';
+ const db=new FakeDB();
+ const make=(suffix,name,status)=>({
+  id:'20000000-0000-4000-8000-000000000'+suffix,
+  listId,name,qty:1,unit:'un',unitPriceCents:100,barcode:'',status
+ });
+ const products=[
+  make('720','Arroz','pending'),
+  make('721','Café','bought'),
+  make('722','Sabão','later')
+ ];
+ const a=setup(owner,db,[{id:listId,name:'Compras'}],products);
+ await sleep(20);a.doc.get('lumo-cloud-activate').fire();await sleep(150);
+ assert.deepEqual(products.map(p=>db.items.get(p.id)?.state),['pending','in_cart','unavailable'],
+  'Original state must be sent on the initial cloud insert');
+ a.doc.get('lumo-cloud-create-invite').fire();await sleep(25);
+ const invite=db.clipboard;a.stop();
+ const b=setup(guest,db,[],[]);await sleep(25);
+ b.doc.get('lumo-invite-input').value=invite;b.doc.get('lumo-cloud-redeem').fire();await sleep(120);
+ assert.deepEqual(products.map(p=>b.state.items.find(x=>x.id===p.id)?.status),
+  ['pending','bought','later'],'Second phone must receive all initial states without waiting for a later edit');
+ b.stop();
+});
+
+
+test('reaplicar edição local é atômico mesmo quando localStorage recusa escrita',async()=>{
+ const user='00000000-0000-4000-8000-000000000723';
+ const listId='10000000-0000-4000-8000-000000000723';
+ const itemId='20000000-0000-4000-8000-000000000723';
+ const db=new FakeDB();let rejectWrite=false;
+ const a=setup(user,db,[{id:listId,name:'Mercado'}],
+  [{id:itemId,listId,name:'Macarrão',qty:1,unit:'un',unitPriceCents:420,status:'pending',barcode:''}],
+  {rejectCloudWrite:()=>rejectWrite});
+ await sleep(20);a.doc.get('lumo-cloud-activate').fire();await sleep(130);
+ const key='lumo-experience-sync-'+user,shadowKey=listId+':'+itemId;
+ const read=()=>JSON.parse(accountStores.get(user).get(key));
+ assert.equal(read().shadow[shadowKey].revision,1);
+ db.items.set(itemId,{...db.items.get(itemId),quantity:2,revision:2,updated_at:new Date().toISOString()});
+ a.state.items[0].qty=3;await a.sync.syncOnce();
+ assert.equal(read().conflicts.length,1,'Concurrent edit is reviewable');
+ const chooseLocal=()=>a.doc.get('lumo-cloud-conflicts').handlers.click({
+  target:{closest:()=>({dataset:{cloudChoice:'local',cloudIndex:'0'}})}
+ });
+ rejectWrite=true;chooseLocal();await sleep(25);
+ assert.equal(read().conflicts.length,1,'Persisted conflict survives failed retry');
+ assert.equal(read().shadow[shadowKey].revision,1,'Stored shadow is not advanced prematurely');
+ assert.equal(read().pending.length,0,'No unpersisted operation is considered queued');
+ rejectWrite=false;chooseLocal();await sleep(65);
+ assert.equal(db.items.get(itemId).quantity,3,'Approved local edit reaches server after retry');
+ assert.equal(read().conflicts.length,0,'Persisted conflict removed only after operation is saved');
+ a.stop();
+});
+
+
+test('reaplicar edição após exclusão remota restaura nome, quantidade e estado',async()=>{
+ const owner='00000000-0000-4000-8000-000000000731';
+ const guest='00000000-0000-4000-8000-000000000732';
+ const listId='10000000-0000-4000-8000-000000000731';
+ const itemId='20000000-0000-4000-8000-000000000731';
+ const db=new FakeDB();
+ const a=setup(owner,db,[{id:listId,name:'Supermercado'}],
+  [{id:itemId,listId,name:'Banana',qty:1,unit:'un',unitPriceCents:300,status:'pending',barcode:''}]);
+ await sleep(20);a.doc.get('lumo-cloud-activate').fire();await sleep(130);
+ a.doc.get('lumo-cloud-create-invite').fire();await sleep(25);
+ const invite=db.clipboard;
+ const b=setup(guest,db,[],[]);await sleep(25);
+ b.doc.get('lumo-invite-input').value=invite;b.doc.get('lumo-cloud-redeem').fire();await sleep(100);
+ assert.equal(b.state.items.length,1,'Guest receives the original item');
+ b.state.items.splice(0,1);
+ window.dispatchEvent(new Event('lumo:local-changed'));
+ await sleep(25);await b.sync.syncOnce();
+ assert.ok(db.items.get(itemId)?.deleted_at,'Guest deleted the item in cloud');
+ // Restore the owner as the active simulated browser; each fake session uses
+ // global window/document/localStorage, just as the existing two-phone tests do.
+ const savedOwner=structuredClone(a.state);a.stop();b.stop();
+ savedOwner.items[0].qty=5;
+ savedOwner.items[0].name='Banana madura';
+ savedOwner.items[0].status='bought';
+ const a2=setup(owner,db,savedOwner.lists,savedOwner.items);
+ await sleep(80);
+ const ownerState=JSON.parse(accountStores.get(owner).get('lumo-experience-sync-'+owner));
+ assert.equal(ownerState.conflicts.length,1,'Owner gets conflict instead of silent deletion');
+ a2.doc.get('lumo-cloud-conflicts').handlers.click({target:{closest:()=>({
+  dataset:{cloudChoice:'local',cloudIndex:'0'}
+ })}});
+ await sleep(90);
+ const restored=db.items.get(itemId);
+ assert.equal(restored.deleted_at,null,'Tombstone removed after explicit approval');
+ assert.equal(restored.quantity,5,'Updated quantity retained');
+ assert.equal(restored.name,'Banana madura','Updated name retained');
+ assert.equal(restored.state,'in_cart','Updated bought state retained');
+ assert.equal(JSON.parse(accountStores.get(owner).get('lumo-experience-sync-'+owner)).conflicts.length,0);
+ a2.stop();
+});
+
+test('a revogação impede repetir o ACK de uma operação antes autorizada',async()=>{
+ const owner='00000000-0000-4000-8000-000000000733';
+ const guest='00000000-0000-4000-8000-000000000734';
+ const listId='10000000-0000-4000-8000-000000000733';
+ const itemId='20000000-0000-4000-8000-000000000733';
+ const db=new FakeDB();
+ const a=setup(owner,db,[{id:listId,name:'Compras'}],
+  [{id:itemId,listId,name:'Pão',qty:1,unit:'un',unitPriceCents:200,status:'pending',barcode:''}]);
+ await sleep(20);a.doc.get('lumo-cloud-activate').fire();await sleep(130);
+ a.doc.get('lumo-cloud-create-invite').fire();await sleep(25);
+ const b=setup(guest,db,[],[]);await sleep(25);
+ b.doc.get('lumo-invite-input').value=db.clipboard;b.doc.get('lumo-cloud-redeem').fire();await sleep(100);
+ const oldAckOp='30000000-0000-4000-8000-000000000734';
+ const params={p_list:listId,p_op:oldAckOp,p_action:'edit',p_item:itemId,
+  p_payload:{quantity:3},p_expected:1};
+ const ack=await db.rpc(guest,'lumo_apply_item',params);
+ assert.equal(ack.status,'ack','Guest can edit before revocation');
+ db.members.delete(listId+':'+guest);
+ await assert.rejects(db.rpc(guest,'lumo_apply_item',params),/forbidden/,
+  'Replaying the very same acknowledged operation must be denied after revocation');
+ a.stop();b.stop();
+});
+
+
+test('perda de acesso preserva fila offline e evita nova escrita na lista revogada',async()=>{
+ const owner='00000000-0000-4000-8000-000000000741';
+ const guest='00000000-0000-4000-8000-000000000742';
+ const listId='10000000-0000-4000-8000-000000000741';
+ const itemId='20000000-0000-4000-8000-000000000741';
+ const db=new FakeDB();
+ const a=setup(owner,db,[{id:listId,name:'Lista da casa'}],
+  [{id:itemId,listId,name:'Arroz',qty:1,unit:'un',unitPriceCents:500,status:'pending',barcode:''}]);
+ await sleep(20);a.doc.get('lumo-cloud-activate').fire();await sleep(130);
+ a.doc.get('lumo-cloud-create-invite').fire();await sleep(25);
+ const b=setup(guest,db,[],[]);await sleep(25);
+ b.doc.get('lumo-invite-input').value=db.clipboard;b.doc.get('lumo-cloud-redeem').fire();await sleep(105);
+ assert.equal(b.state.items.length,1,'Guest downloaded shared item');
+ navigator.onLine=false;
+ b.state.items.splice(0,1);
+ window.dispatchEvent(new Event('lumo:local-changed'));
+ await sleep(25);
+ const read=()=>JSON.parse(accountStores.get(guest).get('lumo-experience-sync-'+guest));
+ assert.equal(read().pending.length,1,'Local deletion saved as an unacknowledged operation');
+ db.members.delete(listId+':'+guest);
+ navigator.onLine=true;
+ await b.sync.syncOnce();
+ assert.match(b.doc.get('lumo-cloud-status').textContent,/sem acesso à nuvem/i);
+ assert.equal(read().pending.length,1,'Unsent operation preserved for manual review');
+ assert.equal(read().lists[listId],listId,'Cloud mapping remains visible for investigation');
+ assert.equal(db.items.get(itemId).deleted_at,null,'No unauthorized delete was attempted');
+ assert.ok(b.state.lists.some(x=>x.id===listId),'Previously downloaded local list preserved');
+ b.stop();a.stop();
 });
