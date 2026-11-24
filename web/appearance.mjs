@@ -91,7 +91,8 @@ const contrast=(hex)=>{
  const light=.2126*v[0]+.7152*v[1]+.0722*v[2];
  return ((light+.05)/.05)>=(1.05/(light+.05))?'#172236':'#FFFFFF';
 };
-const renderMascot=(className,id)=>mascot(className,mascotSafe(id));
+const renderMascot=(className,id)=>mascot('picker-mascot',mascotSafe(id))
+ .replace('class="mascot-svg picker-mascot',`class="mascot-svg picker-mascot ${className}`);
 function applyAppearance(raw){
  const p=appearance(raw);
  const root=document.documentElement.style;
